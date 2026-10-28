@@ -1,0 +1,39 @@
+/* every color the ui uses lives here */
+@font-face {
+  font-family: 'Minecraft';
+  src: url('../assets/Minecraft.ttf') format('truetype');
+  font-display: swap;
+}
+
+:root {
+  /* greys, darkest to lightest */
+  --ink: #09090b;
+  --coal: #121215;
+  --slate: #1b1b20;
+  --steel: #292930;
+  --line: #3d3d47;
+  --muted: #8b8b99;
+  --text: #f1f1f5;
+
+  /* the seven piece colors, each with a darker shade for hard shadows */
+  --cyan: #22d3ee;
+  --cyan-dk: #0e8196;
+  --yellow: #facc15;
+  --yellow-dk: #9a7c06;
+  --purple: #a855f7;
+  --purple-dk: #6b25b0;
+  --green: #4ade80;
+  --green-dk: #1f8c4a;
+  --red: #ef4444;
+  --red-dk: #911d1d;
+  --blue: #3b82f6;
+  --blue-dk: #1a4aa0;
+  --orange: #fb923c;
+  --orange-dk: #a8520f;
+
+  --font-display: 'Minecraft', 'Courier New', monospace;
+  --font-body: 'Chakra Petch', system-ui, sans-serif;
+
+  /* the one curve used for snappy overshoot */
+  --pop: cubic-bezier(0.3, 1.7, 0.5, 1);
+}

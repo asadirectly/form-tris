@@ -1,0 +1,22 @@
+{
+  "name": "form-tris",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "server": "node --env-file=.env --watch server/index.js",
+    "build": "vite build",
+    "start": "NODE_ENV=production node --env-file=.env server/index.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "express-session": "^1.19.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.5"
+  }
+}
