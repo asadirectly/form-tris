@@ -9,16 +9,25 @@ const MINI_POINTS = [100, 200, 400];
 const PERFECT_POINTS = [0, 800, 1200, 1800, 2000];
 const LINE_NAMES = ['', 'SINGLE', 'DOUBLE', 'TRIPLE', 'TETRIS'];
 
+// garbage lines sent by a clear in multiplayer, indexed by how many rows were cleared
+const ATTACK = [0, 0, 1, 2, 4];
+const TSPIN_ATTACK = [0, 2, 4, 6];
+const MINI_ATTACK = [0, 0, 1];
+const COMBO_ATTACK = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5]; // indexed by combo
+const MAX_GARBAGE = 8; // rows that can come up after one piece
+
 function emptyRow() {
   return new Array(COLS).fill(null);
 }
 
-export function newGame(mode) {
+export function newGame(mode, rng) {
   const board = [];
   for (let y = 0; y < ROWS; y++) board.push(emptyRow());
 
   const game = {
     mode,
+    rng: rng || Math.random, // multiplayer passes a seeded one so everybody gets the same pieces
+    incoming: 0, // garbage lines waiting to come up from the bottom (multiplayer only)
     state: 'countdown', // countdown -> playing -> over
     countdown: 3000,
     count: 3,
@@ -53,7 +62,7 @@ function fillQueue(game) {
   while (game.queue.length < 7) {
     const bag = PIECE_TYPES.slice();
     for (let i = bag.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(game.rng() * (i + 1));
       [bag[i], bag[j]] = [bag[j], bag[i]];
     }
     game.queue.push(...bag);
@@ -317,8 +326,34 @@ function lockPiece(game) {
     return;
   }
 
+  // waiting garbage only comes up when the piece didn't clear anything
+  if (cleared === 0 && game.incoming > 0) {
+    addGarbage(game);
+    if (game.state === 'over') return;
+  }
+
   game.canHold = true;
   nextPiece(game);
+}
+
+// pushes garbage up from the bottom, every row in a batch shares one hole
+function addGarbage(game) {
+  const count = Math.min(game.incoming, MAX_GARBAGE);
+  const hole = Math.floor(Math.random() * COLS);
+  let toppedOut = false;
+
+  for (let i = 0; i < count; i++) {
+    // the top row falls off the board, blocks in it mean the stack got too high
+    if (game.board.shift().some((cell) => cell !== null)) toppedOut = true;
+    const row = new Array(COLS).fill('G');
+    row[hole] = null;
+    game.board.push(row);
+  }
+
+  game.incoming -= count;
+  game.dirty = true;
+  game.events.push({ type: 'garbage', lines: count });
+  if (toppedOut) endGame(game, false);
 }
 
 function clearLines(game, tspin) {
@@ -375,6 +410,23 @@ function clearLines(game, tspin) {
   const perfect = game.board.every((row) => row.every((cell) => cell === null));
   if (perfect && n > 0) total += PERFECT_POINTS[n] * game.level;
 
+  // what this clear sends to the other players, it cancels our own waiting garbage first
+  if (game.mode === 'versus') {
+    let table = ATTACK;
+    if (tspin === 'tspin') table = TSPIN_ATTACK;
+    else if (tspin === 'mini') table = MINI_ATTACK;
+
+    let attack = table[n] || 0;
+    if (b2b) attack++;
+    attack += COMBO_ATTACK[Math.min(game.combo, COMBO_ATTACK.length - 1)] || 0;
+    if (perfect && n > 0) attack = 10;
+
+    const cancel = Math.min(attack, game.incoming);
+    game.incoming -= cancel;
+    attack -= cancel;
+    if (attack > 0) game.events.push({ type: 'attack', lines: attack });
+  }
+
   game.score += total;
   game.lines += n;
 
@@ -388,13 +440,13 @@ function clearLines(game, tspin) {
     perfect: perfect && n > 0,
   });
 
-  if (game.mode === 'normal') {
+  if (game.mode !== 'sprint') {
     const newLevel = Math.floor(game.lines / 10) + 1;
     if (newLevel > game.level) {
       game.level = newLevel;
       game.events.push({ type: 'levelup', level: newLevel });
     }
-  } else if (game.lines >= SPRINT_LINES) {
+  } else if (game.lines >= SPRINT_LINES) { // 40L only
     endGame(game, true);
   }
 

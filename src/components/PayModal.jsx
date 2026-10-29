@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MODES } from '../game/constants.js';
 
-export default function PayModal({ mode, cost, onPay, onCancel }) {
+export default function PayModal({ mode, cost, discount, onPay, onCancel }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -36,7 +36,8 @@ export default function PayModal({ mode, cost, onPay, onCancel }) {
         <h2 className="modal-head">{MODES[mode].name}</h2>
         <div className="modal-body">
           <p>
-            This round costs <strong>{cost} Digipogs</strong>. Enter your Formbar PIN to pay.
+            This round costs <strong>{cost} Digipogs</strong>
+            {discount > 0 && ` (${discount}% off)`}. Enter your Formbar PIN to pay.
           </p>
           <input
             type="password"

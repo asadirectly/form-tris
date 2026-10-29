@@ -11,12 +11,24 @@ export const SOFT_DROP = 8; // soft drop is this many times faster than gravity
 export const SOFT_DROP_MIN_MS = 60; // but never faster than one row per this many ms (raise it to slow soft drop down more)
 export const SPRINT_LINES = 40;
 
+// multiplayer lobbies, the server enforces these limits and the lobby screens read them
+export const MIN_PLAYERS = 2;
+export const LOBBY_KINDS = {
+  standard: { name: 'Standard', max: 32, blurb: 'Classic versus. Garbage, targeting and last one standing.' },
+  royale: { name: 'Battle Royale', max: 99, blurb: 'Up to 99 players. KOs make your attacks stronger.' },
+};
+
 export const MODES = {
   normal: { name: 'Normal', blurb: 'Endless. Clear lines, progressive diffulty, blah blah blah' },
   sprint: { name: '40L', blurb: 'Clear 40 lines as fast as you can' },
 };
 
+// the multiplayer bar on the menu, it opens the lobbies instead of starting a round
+export const MULTI = { name: 'Multiplayer', blurb: 'Standard (up to 32) or Battle Royale (up to 99). CPUs welcome.' };
+export const MENU_MODES = ['normal', 'multi', 'sprint']; // order of the bars on the menu
+
 export const COLORS = {
+  G: '#71717a', // garbage
   I: '#22d3ee',
   O: '#facc15',
   T: '#a855f7',

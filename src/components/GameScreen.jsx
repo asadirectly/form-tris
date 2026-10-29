@@ -5,7 +5,7 @@ import PieceBox from './PieceBox.jsx';
 import Timer from './Timer.jsx';
 import TouchPad from './TouchPad.jsx';
 
-function Stat({ label, value, big }) {
+export function Stat({ label, value, big }) {
   return (
     <div className={big ? 'stat big' : 'stat'}>
       <span className="stat-label">{label}</span>
@@ -14,8 +14,8 @@ function Stat({ label, value, big }) {
   );
 }
 
-export default function GameScreen({ mode, costText, onPlayAgain, onQuit }) {
-  const { canvasRef, boxRef, hud, popups, removePopup, paused, togglePause, result, getTime } = useGame(mode);
+export default function GameScreen({ mode, roundId, costText, onPlayAgain, onQuit, onScore }) {
+  const { canvasRef, boxRef, hud, popups, removePopup, paused, togglePause, result, getTime } = useGame(mode, roundId, onScore);
   const sprint = mode === 'sprint';
 
   let bestText = '';
@@ -122,6 +122,8 @@ export default function GameScreen({ mode, costText, onPlayAgain, onQuit }) {
                   )}
                 </dl>
                 {bestText && <p className="best-line">{bestText}</p>}
+                {result.rank && <p className="best-line">Leaderboard rank: #{result.rank}</p>}
+                {result.rankError && <p className="error">{result.rankError}</p>}
                 <button className="btn" onClick={onPlayAgain}>
                   Play again
                   <small className="btn-cost">{costText}</small>

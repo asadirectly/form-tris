@@ -3,6 +3,8 @@ import { DAS, ARR } from './constants.js';
 import { newGame, update, moveSide, rotate, hardDrop, holdPiece } from './engine.js';
 import { drawBoard } from './draw.js';
 import { makeEffects, updateEffects, addClearEffects, addLockFlash } from './effects.js';
+import { submitScore } from '../api.js';
+import { encodeBoard, seededRandom } from './versus.js';
 
 // keys the page shouldn't react to (arrows and space scroll the page)
 const gameKeys = ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Space'];
@@ -23,7 +25,8 @@ function saveBest(game) {
   }
 }
 
-export function useGame(mode) {
+// versus is only given in multiplayer: { socket, seed }. there is no pausing in a live match
+export function useGame(mode, roundId, onScore, versus) {
   const canvasRef = useRef(null);
   const boxRef = useRef(null);
   const gameRef = useRef(null);
@@ -32,6 +35,7 @@ export function useGame(mode) {
 
   const [hud, setHud] = useState({
     score: 0, lines: 0, level: 1, next: [], hold: null, canHold: true, count: 3, state: 'countdown', combo: -1, b2b: false,
+    incoming: 0,
   });
   const [popups, setPopups] = useState([]);
   const [paused, setPaused] = useState(false);
@@ -39,7 +43,7 @@ export function useGame(mode) {
 
   function togglePause() {
     const game = gameRef.current;
-    if (!game || game.state !== 'playing') return;
+    if (!game || game.state !== 'playing' || versus) return;
     pausedRef.current = !pausedRef.current;
     setPaused(pausedRef.current);
   }
@@ -53,7 +57,7 @@ export function useGame(mode) {
   }
 
   useEffect(() => {
-    const game = newGame(mode);
+    const game = newGame(mode, versus ? seededRandom(versus.seed) : undefined);
     const fx = makeEffects();
     const ctx = canvasRef.current.getContext('2d');
     const input = { dir: 0, das: 0, arr: 0, left: false, right: false };
@@ -86,6 +90,7 @@ export function useGame(mode) {
         state: game.state,
         combo: game.combo,
         b2b: game.b2b,
+        incoming: game.incoming,
       });
     }
 
@@ -107,14 +112,31 @@ export function useGame(mode) {
     function handleEvents() {
       // splice(0) hands back everything and empties the list
       for (const e of game.events.splice(0)) {
+        if (e.type === 'lock' || e.type === 'garbage') boardChanged = true;
         if (e.type === 'lock') addLockFlash(fx, e.cells);
         else if (e.type === 'harddrop' && e.dist > 0) shake('shake-small');
         else if (e.type === 'clear') handleClear(e);
         else if (e.type === 'levelup') addPopup(`LEVEL ${e.level}`, 'level');
         else if (e.type === 'go') addPopup('GO!', 'go');
-        else if (e.type === 'gameover') {
+        else if (e.type === 'attack') versus.socket.send({ type: 'attack', lines: e.lines });
+        else if (e.type === 'garbage') shake('shake-big');
+        else if (e.type === 'gameover' && versus) {
+          versus.socket.send({ type: 'dead' });
+          setResult({ won: false, score: game.score, lines: game.lines, level: game.level, time: game.time });
+        } else if (e.type === 'gameover') {
           const best = saveBest(game);
           setResult({ won: e.won, score: game.score, lines: game.lines, level: game.level, time: game.time, best });
+
+          // sprint only counts when it was finished, and a score of 0 isn't worth saving
+          if (mode === 'sprint' ? e.won : game.score > 0) {
+            const stats = { score: game.score, lines: game.lines, level: game.level, time: Math.round(game.time), won: e.won };
+            submitScore(roundId, stats)
+              .then((saved) => {
+                setResult((r) => ({ ...r, rank: saved.rank }));
+                onScore(); // the player's discount may have changed
+              })
+              .catch((err) => setResult((r) => ({ ...r, rankError: err.message })));
+          }
         }
       }
     }
@@ -186,6 +208,23 @@ export function useGame(mode) {
       if (!pausedRef.current) togglePause();
     }
 
+    // in multiplayer the server needs to know about every new board, and what the other players send us
+    let boardChanged = false;
+    let lastBoardSend = 0;
+    const stopListening = [];
+    if (versus) {
+      stopListening.push(
+        versus.socket.on('garbage', (m) => {
+          game.incoming += m.lines;
+          game.dirty = true;
+        }),
+        versus.socket.on('ko', (m) => {
+          game.incoming = Math.max(0, game.incoming - m.cancel);
+          game.dirty = true;
+        })
+      );
+    }
+
     let last = performance.now();
     let rafId;
 
@@ -197,6 +236,11 @@ export function useGame(mode) {
         runHeldKeys(dt);
         update(game, dt);
         handleEvents();
+        if (versus && boardChanged && now - lastBoardSend >= 250) {
+          versus.socket.send({ type: 'board', rows: encodeBoard(game.board) });
+          boardChanged = false;
+          lastBoardSend = now;
+        }
         updateEffects(fx, dt);
         if (game.dirty) syncHud();
       }
@@ -212,6 +256,7 @@ export function useGame(mode) {
 
     return () => {
       cancelAnimationFrame(rafId);
+      stopListening.forEach((stop) => stop());
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);

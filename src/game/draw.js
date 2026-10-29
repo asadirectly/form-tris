@@ -1,4 +1,5 @@
 import { COLS, ROWS, HIDDEN, CELL, COLORS, SHAPES } from './constants.js';
+import { BOARD_TYPES } from './versus.js';
 import { getGhostY, fallProgress } from './engine.js';
 import { drawEffects } from './effects.js';
 
@@ -81,5 +82,15 @@ export function drawPreview(ctx, type, width, height) {
     for (let c = minC; c <= maxC; c++) {
       if (shape[r][c]) drawCell(ctx, offsetX + (c - minC) * size, offsetY + (r - minR) * size, size, COLORS[type]);
     }
+  }
+}
+
+// a whole board from the network (see versus.js) drawn as small flat blocks, for the opponent previews
+export function drawMini(ctx, board, cell) {
+  ctx.clearRect(0, 0, COLS * cell, (ROWS - HIDDEN) * cell);
+  for (let i = 0; i < board.length; i++) {
+    if (board[i] === '0') continue;
+    ctx.fillStyle = COLORS[BOARD_TYPES[Number(board[i]) - 1]];
+    ctx.fillRect((i % COLS) * cell, Math.floor(i / COLS) * cell, cell - 1, cell - 1);
   }
 }

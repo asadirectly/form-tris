@@ -575,6 +575,408 @@ kbd {
   color: var(--muted);
 }
 
+/* leaderboard box on the menu */
+
+.perks li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 2px solid var(--steel);
+}
+
+.perks b {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--yellow);
+}
+
+.perks-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* leaderboard screen, one box per mode in the same colors as the mode bars */
+
+.boards {
+  grid-column: 1 / -1;
+}
+
+.boards .fine {
+  padding-top: 4px;
+}
+
+.boards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 36px;
+  align-items: start;
+}
+
+.board {
+  border-color: var(--c);
+  box-shadow: 8px 8px 0 var(--c-dk);
+  animation: bar-in 0.4s var(--pop) backwards;
+  animation-delay: calc(var(--i) * 0.1s + 0.1s);
+}
+
+.board.normal { --c: var(--blue); --c-dk: var(--blue-dk); --accent: var(--blue); }
+.board.sprint { --c: var(--orange); --c-dk: var(--orange-dk); --accent: var(--orange); }
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 2px solid var(--steel);
+}
+
+.rank-row:last-child { border-bottom: 0; }
+
+.rank-pos {
+  min-width: 28px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.rank-row:nth-child(-n + 3) .rank-pos { color: var(--c); }
+
+.rank-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-value {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the player's own row, same look as the "coming soon" rows */
+.rank-row.me {
+  margin: 0 -12px;
+  padding: 6px 12px;
+  background: var(--slate);
+  box-shadow: inset 6px 0 0 var(--c);
+}
+
+/* multiplayer lobbies */
+
+.mode-bar.multi { --c: var(--red); --c-dk: var(--red-dk); }
+.mode-bar.multi .mode-name { font-size: 54px; }
+
+.center-col {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.lobbies { --accent: var(--red); }
+.spectators { margin-top: 20px; --accent: var(--muted); }
+
+.lobby-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  background: var(--slate);
+  border: 0;
+  border-left: 6px solid var(--c);
+  cursor: pointer;
+  transition: transform 0.12s var(--pop), background 0.1s;
+}
+
+.lobby-row:last-child { margin-bottom: 0; }
+.lobby-row.standard { --c: var(--cyan); }
+.lobby-row.royale { --c: var(--purple); }
+
+.lobby-row:hover {
+  background: var(--steel);
+  transform: translateX(6px);
+}
+
+.lobby-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lobby-info {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.lobby-go {
+  min-width: 52px;
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: 16px;
+  text-transform: uppercase;
+  color: var(--c);
+}
+
+.lobby-row:hover .lobby-go { color: var(--yellow); }
+
+/* forms use the same inputs as the pin box */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form .box-title { margin-bottom: 0; }
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.form input[type='text'],
+.form input[type='password'],
+.form input[type='number'],
+.form select {
+  width: 100%;
+  padding: 6px 10px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+  color-scheme: dark;
+  background: var(--ink);
+  border: 3px solid var(--line);
+}
+
+.form input:focus,
+.form select:focus {
+  outline: none;
+  border-color: var(--yellow);
+}
+
+.form label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.form input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--yellow);
+}
+
+.cpu-add {
+  display: flex;
+  gap: 10px;
+}
+
+.cpu-add select { flex: 1; }
+
+.members li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  background: var(--slate);
+  border-left: 6px solid var(--line);
+}
+
+.members li:last-child { margin-bottom: 0; }
+.members li.ready { border-left-color: var(--green); }
+
+.member-name {
+  flex: 1;
+  min-width: 90px;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-level {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.members select {
+  padding: 3px 6px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  color-scheme: dark;
+  background: var(--ink);
+  border: 3px solid var(--line);
+}
+
+.members .btn.small { font-size: 14px; padding: 3px 8px; }
+
+.badge.ready { background: var(--green); }
+.badge.wait { color: var(--muted); background: var(--steel); }
+.badge.cpu { background: var(--purple); }
+
+.lobby-code {
+  margin-bottom: 4px;
+  font-family: var(--font-display);
+  font-size: 40px;
+  letter-spacing: 0.15em;
+  text-align: center;
+  color: var(--yellow);
+}
+
+.lobby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.lobby-actions + .fine { margin-top: 10px; }
+
+/* in a match, opponents are small boards on both sides of yours */
+
+.game.versus {
+  --mode-c: var(--red);
+  --mode-dk: var(--red-dk);
+  gap: 16px;
+}
+
+.opps {
+  display: grid;
+  grid-template-columns: repeat(4, 44px);
+  grid-auto-rows: min-content;
+  gap: 8px 6px;
+  align-content: start;
+}
+
+.mini {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+  background: var(--coal);
+  border: 2px solid var(--line);
+  cursor: pointer;
+  transition: transform 0.1s var(--pop), border-color 0.1s;
+}
+
+.mini canvas {
+  display: block;
+  width: 40px;
+  height: 80px;
+}
+
+.mini-name {
+  padding: 1px 2px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--slate);
+}
+
+.mini:hover {
+  border-color: var(--text);
+  transform: translateY(-2px);
+}
+
+.mini.target { border-color: var(--red); }
+
+.mini.target .mini-name {
+  color: #000;
+  background: var(--red);
+}
+
+.meter.danger .meter-fill { background: var(--red); }
+
+.chips.aim { flex-wrap: wrap; }
+
+button.chip {
+  flex: 1 1 45%;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  background: none;
+  cursor: pointer;
+}
+
+button.chip:hover { color: var(--text); }
+.chip.pick.on { background: var(--yellow); }
+
+.watch-board {
+  line-height: 0;
+  background: var(--ink);
+  border: 4px solid var(--mode-c);
+  box-shadow: 8px 8px 0 var(--mode-dk);
+}
+
+.watch-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.modal.multi { --c: var(--red); --c-dk: var(--red-dk); }
+
+.results {
+  max-height: 50dvh;
+  overflow-y: auto;
+}
+
+.results .rank-row.me {
+  margin: 0 -18px;
+  padding: 6px 18px;
+}
+
+@media (max-width: 1180px) {
+  .game.versus { flex-wrap: wrap; }
+
+  .opps {
+    order: 3;
+    width: 100%;
+    grid-template-columns: repeat(auto-fill, 44px);
+    justify-content: center;
+  }
+}
+
 /* payment modal */
 
 .modal-back {
@@ -1025,6 +1427,10 @@ kbd {
 
 @media (max-width: 900px) {
   .menu {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .boards-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

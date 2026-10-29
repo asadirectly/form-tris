@@ -9,6 +9,10 @@ export const config = {
   apiPrefix: '/api',
 
   roundCost: 30,
+  discounts: [25, 15, 10], // percent off for 1st, 2nd and 3rd place
+  boardSize: 10, // rows shown on each leaderboard
+  maxLobbies: 100, // multiplayer lobbies at once
+  maxSpectators: 32, // per lobby, they don't count toward the player limit
   poolId: 80,
   ownerId: 91,
   adminIds: [1, 91],

@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': target,
         '/login': target,
+        '/ws': { target, ws: true }, // multiplayer socket
       },
     },
   };

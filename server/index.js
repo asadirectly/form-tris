@@ -4,7 +4,9 @@ import express from 'express';
 import session from 'express-session';
 import { config } from './config.js';
 import { isExpired, oauthUrl, readLoginToken } from './formbar.js';
-import { startRound } from './rounds.js';
+import { startRound, finishRound } from './rounds.js';
+import { getBoards, getDiscount, getPrice } from './leaderboard.js';
+import { attachSockets } from './socket.js';
 
 if (!config.sessionSecret || !config.formbarApiUrl || !config.formbarClientUrl) {
   console.error('missing settings, copy .env.example to .env and fill it in');
@@ -18,14 +20,14 @@ const isProd = process.env.NODE_ENV === 'production';
 if (isProd) app.set('trust proxy', 1);
 
 app.use(express.json());
-app.use(
-  session({
-    secret: config.sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: 'lax', secure: isProd, maxAge: 8 * 60 * 60 * 1000 },
-  })
-);
+// kept in a variable because the multiplayer sockets read the same login session
+const sessionMiddleware = session({
+  secret: config.sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: 'lax', secure: isProd, maxAge: 8 * 60 * 60 * 1000 },
+});
+app.use(sessionMiddleware);
 
 // send the player to formbar to log in, it sends them back to /login/callback
 // if they already have a refresh token (an expired login), formbar renews it without asking for a password
@@ -67,7 +69,9 @@ app.get('/api/me', (req, res) => {
     name: user.name,
     isAdmin: config.adminIds.includes(user.id),
     playsFree: user.id === config.ownerId,
-    roundCost: config.roundCost,
+    roundCost: getPrice(user.id), // what this player pays right now, after any discount
+    discount: getDiscount(user.id),
+    discounts: config.discounts, // what 1st, 2nd and 3rd place get
   });
 });
 
@@ -80,9 +84,25 @@ app.post('/api/rounds', async (req, res) => {
     return res.status(401).json({ error: 'your Formbar login expired, please log in again' });
   }
 
-  const { mode, pin, requestId } = req.body || {};
-  const round = await startRound(user, mode, pin, requestId);
+  const { mode, pin, requestId, expectedCost } = req.body || {};
+  const round = await startRound(user, mode, pin, requestId, expectedCost);
   res.json(round);
+});
+
+// no expiry check on scores, the round was already paid for and a long game shouldn't lose its score
+app.post('/api/scores', (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(401).json({ error: 'not logged in' });
+
+  const { roundId, ...result } = req.body || {};
+  res.json(finishRound(user, roundId, result));
+});
+
+app.get('/api/leaderboards', (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(401).json({ error: 'not logged in' });
+
+  res.json(getBoards(user.id));
 });
 
 app.post('/api/logout', (req, res) => {
@@ -97,7 +117,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.status ? err.message : 'something went wrong' });
 });
 
-app.listen(config.port, (err) => {
+const server = app.listen(config.port, (err) => {
   // express 5 hands startup errors to this callback, like a port that is already taken
   if (err) {
     console.error(`could not start on port ${config.port}:`, err.message);
@@ -105,3 +125,5 @@ app.listen(config.port, (err) => {
   }
   console.log(`server running on port ${config.port}`);
 });
+
+attachSockets(server, sessionMiddleware);

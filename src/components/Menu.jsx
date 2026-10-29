@@ -1,21 +1,25 @@
 import Logo from './Logo.jsx';
 import Keys from './Keys.jsx';
-import { MODES } from '../game/constants.js';
+import { MODES, MENU_MODES, MULTI, MIN_PLAYERS, LOBBY_KINDS } from '../game/constants.js';
 import { getBest } from '../format.js';
 
 const planned = [
-  { name: 'Multiplayer', blurb: 'Up to 99 players, public &/or private rooms.', color: 'red' },
-  { name: 'Leaderboards', blurb: 'Rankings and stats + rewards', color: 'cyan' },
   { name: 'Shop', blurb: 'Themes, cosmetics, etc.', color: 'yellow' },
   { name: 'Settings', blurb: 'Dark mode, light mode, maybe keybinds.', color: 'green' },
   { name: 'Puyo Puyo', blurb: 'A new game mode.', color: 'purple' },
 ];
 
-// the texture strip on the end of each mode bar
-const art = { normal: '/img/Pattern01.png', sprint: '/img/Pattern02.png' };
+const places = ['1st', '2nd', '3rd'];
 
-export default function Menu({ user, error, onPlay, onLogout }) {
-  const cost = user.playsFree ? 'FREE' : `${user.roundCost} Digipogs`;
+// the texture strip on the end of each mode bar
+const art = { normal: '/img/Pattern01.png', multi: '/img/Pattern03.png', sprint: '/img/Pattern02.png' };
+
+export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onLogout }) {
+  let cost = 'FREE';
+  if (!user.playsFree) {
+    cost = `${user.roundCost} Digipogs`;
+    if (user.discount > 0) cost += ` (${user.discount}% off)`;
+  }
 
   return (
     <div className="menu">
@@ -35,20 +39,25 @@ export default function Menu({ user, error, onPlay, onLogout }) {
         <h2 className="heading">Pick a mode</h2>
         {error && <p className="error">{error}</p>}
 
-        {Object.keys(MODES).map((mode, i) => (
-          <button key={mode} className={`mode-bar ${mode}`} style={{ '--i': i, '--art': `url(${art[mode]})` }} onClick={() => onPlay(mode)}>
-            <span className="mode-skew" />
-            <span className="mode-body">
-              <span className="mode-name">{MODES[mode].name}</span>
-              <span className="mode-blurb">{MODES[mode].blurb}</span>
-              <span className="mode-foot">
-                <span className="tag">{cost}</span>
-                <span className="mode-best">Best {getBest(mode) || '--'}</span>
+        {MENU_MODES.map((mode, i) => {
+          // multiplayer opens the lobbies instead of starting a round
+          const multi = mode === 'multi';
+          const info = multi ? MULTI : MODES[mode];
+          return (
+            <button key={mode} className={`mode-bar ${mode}`} style={{ '--i': i, '--art': `url(${art[mode]})` }} onClick={() => (multi ? onMulti() : onPlay(mode))}>
+              <span className="mode-skew" />
+              <span className="mode-body">
+                <span className="mode-name">{info.name}</span>
+                <span className="mode-blurb">{info.blurb}</span>
+                <span className="mode-foot">
+                  <span className="tag">{multi ? 'FREE' : cost}</span>
+                  <span className="mode-best">{multi ? `${MIN_PLAYERS}-${LOBBY_KINDS.royale.max} players` : `Best ${getBest(mode) || '--'}`}</span>
+                </span>
               </span>
-            </span>
-            <span className="mode-go">Play</span>
-          </button>
-        ))}
+              <span className="mode-go">Play</span>
+            </button>
+          );
+        })}
       </section>
 
       <aside className="side-col">
@@ -62,6 +71,21 @@ export default function Menu({ user, error, onPlay, onLogout }) {
               </li>
             ))}
           </ul>
+        </div>
+
+        <div className="box">
+          <h2 className="box-title">Leaderboards</h2>
+          <ul className="perks">
+            {user.discounts.map((percent, i) => (
+              <li key={i}>
+                <span>{places[i]} place</span>
+                <b>{percent}% off</b>
+              </li>
+            ))}
+          </ul>
+          <button className="btn small ghost perks-btn" onClick={onLeaderboard}>
+            View rankings
+          </button>
         </div>
 
         <div className="box">

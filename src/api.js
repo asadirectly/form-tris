@@ -23,11 +23,23 @@ export async function getMe() {
   }
 }
 
-export function startRound(mode, pin, requestId) {
+// expectedCost is the price the player was shown, the server refuses if it changed
+export function startRound(mode, pin, requestId, expectedCost) {
   return request('/api/rounds', {
     method: 'POST',
-    body: JSON.stringify({ mode, pin, requestId }),
+    body: JSON.stringify({ mode, pin, requestId, expectedCost }),
   });
+}
+
+export function submitScore(roundId, result) {
+  return request('/api/scores', {
+    method: 'POST',
+    body: JSON.stringify({ roundId, ...result }),
+  });
+}
+
+export function getLeaderboards() {
+  return request('/api/leaderboards');
 }
 
 export function logout() {
