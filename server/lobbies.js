@@ -3,6 +3,7 @@ import { LOBBY_KINDS, MIN_PLAYERS } from '../src/game/constants.js';
 import { config } from './config.js';
 import { sendTo, sendMany } from './hub.js';
 import { startMatch, stopMatch, matchMessage, playerLeft } from './match.js';
+import { recordMatch, badgesFor } from './profiles.js';
 
 const lobbies = new Map(); // code -> lobby
 const inLobby = new Map(); // member id -> lobby, a person can only be in one at a time
@@ -56,7 +57,8 @@ function missed(userId) {
 }
 
 // the limits live here and nowhere else, the lobby screens only show them
-function readSettings(input, old, userName) {
+// canName is true for admins only. everybody else gets "{name}'s lobby" and can't change it
+function readSettings(input, old, userName, canName) {
   const kind = input.kind === undefined ? (old ? old.kind : 'standard') : input.kind;
   if (typeof kind !== 'string' || !Object.hasOwn(LOBBY_KINDS, kind)) throw fail('unknown lobby type');
   const limit = LOBBY_KINDS[kind].max;
@@ -70,8 +72,9 @@ function readSettings(input, old, userName) {
     throw fail(`${LOBBY_KINDS[kind].name} lobbies hold ${MIN_PLAYERS} to ${limit} players`);
   }
 
-  let name = old ? old.name : `${userName}'s lobby`;
+  let name = old ? old.name : `${userName.replace(/[\u0000-\u001f]/g, '').trim()}'s lobby`;
   if (input.name !== undefined) {
+    if (!canName) throw fail('only admins can name lobbies');
     if (typeof input.name !== 'string') throw fail('bad lobby name');
     name = input.name.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24);
     if (!name) throw fail('the lobby needs a name');
@@ -94,7 +97,7 @@ function readSettings(input, old, userName) {
 
 export function createLobby(user, input) {
   if (lobbies.size >= config.maxLobbies) throw fail('too many lobbies right now, try again later');
-  const settings = readSettings(input || {}, null, user.name);
+  const settings = readSettings(input || {}, null, user.name, config.adminIds.includes(user.id));
 
   leaveLobby(user.id);
   const lobby = {
@@ -218,9 +221,9 @@ export function setRole(userId, role) {
   lobby.dirty = true;
 }
 
-export function updateSettings(userId, input) {
-  const lobby = hostLobby(userId);
-  const settings = readSettings(input, lobby, '');
+export function updateSettings(user, input) {
+  const lobby = hostLobby(user.id);
+  const settings = readSettings(input, lobby, '', config.adminIds.includes(user.id));
 
   // shrinking the lobby can't kick anyone out
   const count = playersIn(lobby).length;
@@ -303,7 +306,7 @@ export function startLobbyMatch(userId) {
   if (notReady > 0) throw fail(`${notReady} player${notReady > 1 ? 's are' : ' is'} not ready yet`);
 
   lobby.status = 'playing';
-  lobby.match = startMatch(lobby, (results) => endMatch(lobby, results));
+  lobby.match = startMatch(lobby, (results, info) => endMatch(lobby, results, info));
   lobby.dirty = true;
 
   for (const m of lobby.members) {
@@ -311,12 +314,19 @@ export function startLobbyMatch(userId) {
   }
 }
 
-function endMatch(lobby, results) {
+function endMatch(lobby, results, info) {
   lobby.match = null;
   lobby.status = 'waiting';
   for (const m of lobby.members) m.ready = m.bot;
   lobby.dirty = true;
   sendMany(lobby.members.filter((m) => !m.bot).map((m) => m.id), { type: 'results', results });
+
+  // the match counts toward each player's profile, and anyone who unlocked something is told
+  const earned = recordMatch(results, info);
+  for (const id of Object.keys(earned)) {
+    const { unlocked, newRank } = earned[id];
+    if (unlocked.length > 0 || newRank) sendTo(id, { type: 'unlocked', ids: unlocked, newRank });
+  }
 }
 
 // attack, board, dead, target and watch messages from a game in progress
@@ -335,7 +345,15 @@ function view(lobby) {
     hostId: lobby.hostId,
     status: lobby.status,
     isPrivate: lobby.isPrivate,
-    members: lobby.members.map((m) => ({ id: m.id, name: m.name, bot: m.bot, level: m.level, ready: m.ready, role: m.role })),
+    members: lobby.members.map((m) => ({
+      id: m.id,
+      name: m.name,
+      bot: m.bot,
+      level: m.level,
+      ready: m.ready,
+      role: m.role,
+      badges: m.bot ? [] : badgesFor(Number(m.id)),
+    })),
   };
 }
 

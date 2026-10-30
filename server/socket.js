@@ -20,7 +20,7 @@ const handlers = {
   },
   ready: (c, m) => setReady(c.user.id, m.ready === true),
   role: (c, m) => setRole(c.user.id, m.role),
-  settings: (c, m) => updateSettings(c.user.id, m),
+  settings: (c, m) => updateSettings(c.user, m),
   addBot: (c, m) => addBot(c.user.id, m.level),
   setBot: (c, m) => setBotLevel(c.user.id, m.id, m.level),
   removeBot: (c, m) => removeBot(c.user.id, m.id),

@@ -4,6 +4,7 @@ import { COLS, ROWS, HIDDEN, CELL, LOBBY_KINDS } from '../game/constants.js';
 import { Stat } from './GameScreen.jsx';
 import Minis, { MiniBoard } from './Minis.jsx';
 import PieceBox from './PieceBox.jsx';
+import PlayerLink from './PlayerLink.jsx';
 import Timer from './Timer.jsx';
 import TouchPad from './TouchPad.jsx';
 
@@ -189,7 +190,7 @@ function Spectate({ socket, kind, boards, ids, alive, total, names, order, follo
   );
 }
 
-function Results({ results, you, onDone, onLeave }) {
+function Results({ results, you, onDone, onLeave, onProfile }) {
   const mine = results.find((r) => r.id === you);
   const top = results.slice(0, 10);
   const label = (r) => (r.bot ? `${r.name} Lv ${r.level}` : r.name);
@@ -203,14 +204,14 @@ function Results({ results, you, onDone, onLeave }) {
             {top.map((r) => (
               <li key={r.id} className={r.id === you ? 'rank-row me' : 'rank-row'}>
                 <span className="rank-pos">{r.placement}</span>
-                <span className="rank-name">{label(r)}</span>
+                <PlayerLink id={r.bot ? '' : r.id} name={label(r)} onProfile={onProfile} className="rank-name" />
                 <span className="rank-value">{r.kos} KO</span>
               </li>
             ))}
             {mine && mine.placement > 10 && (
               <li className="rank-row me">
                 <span className="rank-pos">{mine.placement}</span>
-                <span className="rank-name">{label(mine)}</span>
+                <PlayerLink id={mine.id} name={label(mine)} onProfile={onProfile} className="rank-name" />
                 <span className="rank-value">{mine.kos} KO</span>
               </li>
             )}
@@ -229,7 +230,7 @@ function Results({ results, you, onDone, onLeave }) {
   );
 }
 
-export default function Versus({ socket, lobby, game, onDone, onLeave }) {
+export default function Versus({ socket, lobby, game, onDone, onLeave, onProfile }) {
   const you = game.you;
   const names = {};
   for (const m of lobby.members) names[m.id] = m;
@@ -307,7 +308,7 @@ export default function Versus({ socket, lobby, game, onDone, onLeave }) {
           onLeave={onLeave}
         />
       )}
-      {results && <Results results={results} you={you} onDone={onDone} onLeave={onLeave} />}
+      {results && <Results results={results} you={you} onDone={onDone} onLeave={onLeave} onProfile={onProfile} />}
     </>
   );
 }

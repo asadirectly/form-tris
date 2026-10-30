@@ -30,7 +30,7 @@ export default function LobbyList({ socket, user, error, onBack }) {
   function create(e) {
     e.preventDefault();
     const settings = { kind: form.kind, max: Number(form.max), isPrivate: form.isPrivate, password: form.password };
-    if (form.name.trim()) settings.name = form.name;
+    if (user.isAdmin && form.name.trim()) settings.name = form.name; // everyone else gets "{name}'s lobby" from the server
     socket.send({ type: 'create', ...settings });
   }
 
@@ -76,10 +76,14 @@ export default function LobbyList({ socket, user, error, onBack }) {
       <aside className="side-col">
         <form className="box form" onSubmit={create}>
           <h2 className="box-title">Create lobby</h2>
-          <label>
-            Name
-            <input type="text" maxLength={24} placeholder={`${user.name}'s lobby`} value={form.name} onChange={(e) => change('name', e.target.value)} />
-          </label>
+          {user.isAdmin ? (
+            <label>
+              Name
+              <input type="text" maxLength={24} placeholder={`${user.name}'s lobby`} value={form.name} onChange={(e) => change('name', e.target.value)} />
+            </label>
+          ) : (
+            <p className="fine">Your lobby will be called {user.name}'s lobby.</p>
+          )}
           <label>
             Type
             <select value={form.kind} onChange={(e) => changeKind(e.target.value)}>

@@ -5,7 +5,7 @@ import Lobby from './Lobby.jsx';
 import Versus from './Versus.jsx';
 
 // owns the connection and works out which multiplayer screen to show from what the server says
-export default function Multiplayer({ user, onBack }) {
+export default function Multiplayer({ user, onBack, onUnlock, onProfile }) {
   const [socket, setSocket] = useState(null);
   const [status, setStatus] = useState('connecting'); // connecting, open or closed
   const [lobby, setLobby] = useState(null); // the lobby we're in, null while browsing
@@ -24,6 +24,7 @@ export default function Multiplayer({ user, onBack }) {
       }),
       s.on('start', (m) => setGame(m)),
       s.on('error', (m) => setError(m.message)),
+      s.on('unlocked', (m) => onUnlock({ unlocked: m.ids, newRank: m.newRank })),
     ];
     setSocket(s);
     return () => {
@@ -54,7 +55,7 @@ export default function Multiplayer({ user, onBack }) {
 
   const leave = () => socket.send({ type: 'leave' });
 
-  if (game && lobby) return <Versus socket={socket} lobby={lobby} game={game} onDone={() => setGame(null)} onLeave={leave} />;
-  if (lobby) return <Lobby socket={socket} user={user} lobby={lobby} error={error} />;
+  if (game && lobby) return <Versus socket={socket} lobby={lobby} game={game} onDone={() => setGame(null)} onLeave={leave} onProfile={onProfile} />;
+  if (lobby) return <Lobby socket={socket} user={user} lobby={lobby} error={error} onProfile={onProfile} />;
   return <LobbyList socket={socket} user={user} error={error} onBack={onBack} />;
 }

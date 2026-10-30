@@ -7,6 +7,7 @@ import { isExpired, oauthUrl, readLoginToken } from './formbar.js';
 import { startRound, finishRound } from './rounds.js';
 import { getBoards, getDiscount, getPrice } from './leaderboard.js';
 import { attachSockets } from './socket.js';
+import { touchProfile, publicProfile, searchProfiles, setShownRanks, badgesFor, pictureOf } from './profiles.js';
 
 if (!config.sessionSecret || !config.formbarApiUrl || !config.formbarClientUrl) {
   console.error('missing settings, copy .env.example to .env and fill it in');
@@ -55,6 +56,7 @@ app.get('/login/callback', async (req, res) => {
     req.session.refreshToken = login.refreshToken;
     req.session.tokenExp = login.exp;
     req.session.user = login.user;
+    touchProfile(login.user); // makes sure they have a profile and the right name
     req.session.save(() => res.redirect('/'));
   });
 });
@@ -64,6 +66,7 @@ app.get('/api/me', (req, res) => {
   const user = req.session.user;
   if (!user || isExpired(req.session.tokenExp)) return res.status(401).json({ error: 'not logged in' });
 
+  touchProfile(user);
   res.json({
     id: user.id,
     name: user.name,
@@ -72,6 +75,8 @@ app.get('/api/me', (req, res) => {
     roundCost: getPrice(user.id), // what this player pays right now, after any discount
     discount: getDiscount(user.id),
     discounts: config.discounts, // what 1st, 2nd and 3rd place get
+    badges: badgesFor(user.id),
+    picture: pictureOf(user.id),
   });
 });
 
@@ -102,7 +107,37 @@ app.get('/api/leaderboards', (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(401).json({ error: 'not logged in' });
 
-  res.json(getBoards(user.id));
+  const boards = getBoards(user.id);
+  for (const mode of Object.keys(boards)) {
+    for (const entry of boards[mode].entries) entry.badges = badgesFor(entry.userId);
+  }
+  res.json(boards);
+});
+
+// profiles are visible to anyone who is logged in. the server decides what is public (see profiles.js)
+app.get('/api/profiles', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'not logged in' });
+
+  const offset = Number(req.query.offset);
+  res.json(searchProfiles(req.query.q, offset));
+});
+
+app.get('/api/profiles/:id', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'not logged in' });
+
+  const profile = /^\d{1,10}$/.test(req.params.id) ? publicProfile(Number(req.params.id)) : null;
+  if (!profile) return res.status(404).json({ error: 'there is no player with that id' });
+  res.json(profile);
+});
+
+// a player picks which of their earned ranks to show, only their own profile can be changed
+app.post('/api/profile/ranks', (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(401).json({ error: 'not logged in' });
+
+  const badges = setShownRanks(user.id, (req.body || {}).ranks);
+  if (!badges) return res.status(400).json({ error: 'you can show up to 2 ranks, and only ones you have earned' });
+  res.json({ badges });
 });
 
 app.post('/api/logout', (req, res) => {

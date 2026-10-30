@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
 import { LOBBY_KINDS, MIN_PLAYERS } from '../game/constants.js';
+import PlayerLink, { Badges } from './PlayerLink.jsx';
 
 const levels = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -16,7 +17,7 @@ function LevelSelect({ value, onChange }) {
   );
 }
 
-export default function Lobby({ socket, user, lobby, error }) {
+export default function Lobby({ socket, user, lobby, error, onProfile }) {
   const me = lobby.members.find((m) => m.id === String(user.id));
   const isHost = lobby.hostId === me.id;
   const players = lobby.members.filter((m) => m.role === 'player');
@@ -40,7 +41,9 @@ export default function Lobby({ socket, user, lobby, error }) {
 
   function save(e) {
     e.preventDefault();
-    socket.send({ type: 'settings', ...draft, max: Number(draft.max) });
+    const settings = { ...draft, max: Number(draft.max) };
+    if (!user.isAdmin) delete settings.name; // only admins can rename a lobby, the server checks this too
+    socket.send({ type: 'settings', ...settings });
   }
 
   return (
@@ -49,7 +52,7 @@ export default function Lobby({ socket, user, lobby, error }) {
         <Logo small />
         <div className="user">
           {isHost && <span className="badge owner">Host</span>}
-          <span className="username">{user.name}</span>
+          <PlayerLink id={user.id} name={user.name} onProfile={onProfile} className="username" />
           <button className="btn small ghost" onClick={() => socket.send({ type: 'leave' })}>
             Leave
           </button>
@@ -67,7 +70,8 @@ export default function Lobby({ socket, user, lobby, error }) {
           <ul className="members">
             {players.map((m) => (
               <li key={m.id} className={m.ready || m.id === lobby.hostId ? 'ready' : ''}>
-                <span className="member-name">{m.name}</span>
+                <PlayerLink id={m.bot ? '' : m.id} name={m.name} onProfile={onProfile} className="member-name" />
+                <Badges ids={m.badges} />
                 {m.id === lobby.hostId && <span className="badge owner">Host</span>}
                 {m.bot && <span className="badge cpu">CPU</span>}
                 {m.bot && isHost && <LevelSelect value={m.level} onChange={(level) => socket.send({ type: 'setBot', id: m.id, level })} />}
@@ -96,7 +100,8 @@ export default function Lobby({ socket, user, lobby, error }) {
             <ul className="members">
               {spectators.map((m) => (
                 <li key={m.id}>
-                  <span className="member-name">{m.name}</span>
+                  <PlayerLink id={m.id} name={m.name} onProfile={onProfile} className="member-name" />
+                  <Badges ids={m.badges} />
                   {isHost && m.id !== me.id && (
                     <>
                       <button className="btn small ghost" onClick={() => socket.send({ type: 'host', id: m.id })}>
@@ -155,10 +160,12 @@ export default function Lobby({ socket, user, lobby, error }) {
         {isHost ? (
           <form className="box form" onSubmit={save}>
             <h2 className="box-title">Settings</h2>
-            <label>
-              Name
-              <input type="text" maxLength={24} value={draft.name} onChange={(e) => change('name', e.target.value)} />
-            </label>
+            {user.isAdmin && (
+              <label>
+                Name
+                <input type="text" maxLength={24} value={draft.name} onChange={(e) => change('name', e.target.value)} />
+              </label>
+            )}
             <label>
               Type
               <select value={draft.kind} onChange={(e) => changeKind(e.target.value)}>

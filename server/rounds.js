@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { config } from './config.js';
 import { charge } from './formbar.js';
 import { getPrice, addScore } from './leaderboard.js';
+import { recordSolo } from './profiles.js';
 import { SPRINT_LINES } from '../src/game/constants.js';
 
 const modes = ['normal', 'sprint'];
@@ -70,32 +71,46 @@ export async function startRound(user, mode, pin, requestId, expectedCost) {
 
 // the game runs in the browser so the server can't replay it, these checks just throw out results that can't be real
 function checkResult(round, r) {
-  for (const n of [r.score, r.lines, r.level, r.time]) {
+  for (const n of [r.score, r.lines, r.level, r.time, r.tspins, r.tetrises, r.perfects, r.combo]) {
     if (!Number.isInteger(n) || n < 0) return 'bad numbers';
   }
+  if (typeof r.won !== 'boolean') return 'bad numbers';
 
   // the game clock can't run longer than the round has been open, minus the 3 second countdown
   const elapsed = Date.now() - round.start;
   if (r.time > elapsed - 2500) return 'time is longer than the round';
 
+  // the clear counts have to fit inside the lines. a perfect clear takes at least 2 lines, a combo of n takes n + 1 clears
+  if (r.tspins + r.tetrises * 4 > r.lines) return 'more clears than lines';
+  if (r.perfects * 2 > r.lines) return 'too many perfect clears';
+  if (r.combo > Math.max(0, r.lines - 1)) return 'combo is longer than the lines';
+
   if (round.mode === 'sprint') {
+    if (!r.won) {
+      // a failed race never reaches 40 lines, since reaching them ends it as a win
+      if (r.lines >= SPRINT_LINES) return 'race was not lost';
+      if (r.lines > (r.time / 1000) * 4 + 4) return 'too many lines for the time';
+      return null;
+    }
     // the last clear can overshoot 40 by up to 3 lines
-    if (r.won !== true || r.lines < SPRINT_LINES || r.lines > SPRINT_LINES + 3) return 'sprint was not finished';
+    if (r.lines < SPRINT_LINES || r.lines > SPRINT_LINES + 3) return 'sprint was not finished';
     if (r.time < MIN_SPRINT_MS) return 'sprint is too fast to be real';
     return null;
   }
 
+  if (r.won) return 'normal rounds can not be won';
   if (r.level !== Math.floor(r.lines / 10) + 1) return 'level does not match lines';
   if (r.lines > (r.time / 1000) * 4 + 4) return 'too many lines for the time';
   if (r.score > (r.lines * 2000 + 3000) * r.level) return 'score is too high for the lines';
   return null;
 }
 
-// puts a finished game on the leaderboard, only for a round this player paid for
+// records a finished round, only for a round this player paid for. every finished round counts toward the
+// profile, but only a score (or a finished race) goes on the leaderboard
 export function finishRound(user, roundId, result) {
   const round = openRounds.get(roundId);
   if (!round || round.userId !== user.id) throw fail(400, 'there is no open round for this score');
-  openRounds.delete(roundId); // one score per round, even a rejected one uses it up
+  openRounds.delete(roundId); // one result per round, even a rejected one uses it up
 
   const problem = checkResult(round, result);
   if (problem) {
@@ -103,5 +118,11 @@ export function finishRound(user, roundId, result) {
     throw fail(400, 'that score could not be verified, so it was not saved');
   }
 
-  return addScore(user, round.mode, round.mode === 'sprint' ? result.time : result.score);
+  const earned = recordSolo(user, round.mode, result);
+
+  let saved = { rank: null, isNewBest: false };
+  if (round.mode === 'sprint' && result.won) saved = addScore(user, 'sprint', result.time);
+  if (round.mode === 'normal' && result.score > 0) saved = addScore(user, 'normal', result.score);
+
+  return { ...saved, ...earned };
 }

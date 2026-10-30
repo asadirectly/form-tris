@@ -42,6 +42,22 @@ export function getLeaderboards() {
   return request('/api/leaderboards');
 }
 
+export function getProfile(id) {
+  return request(`/api/profiles/${id}`);
+}
+
+export function searchProfiles(query, offset) {
+  return request(`/api/profiles?q=${encodeURIComponent(query)}&offset=${offset}`);
+}
+
+// ranks is a list of rank ids, up to 2 earned ones
+export function chooseRanks(ranks) {
+  return request('/api/profile/ranks', {
+    method: 'POST',
+    body: JSON.stringify({ ranks }),
+  });
+}
+
 export function logout() {
   return request('/api/logout', { method: 'POST' });
 }

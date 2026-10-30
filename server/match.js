@@ -43,6 +43,7 @@ export function startMatch(lobby, onEnd) {
       height: 0,
       lastActive: now + COUNTDOWN,
       lastBoard: 0,
+      outAt: 0, // when they went out, for the profile's playtime
       game: null,
       nextAt: 0,
     };
@@ -190,6 +191,7 @@ function sendAttack(match, from, lines) {
 function eliminate(match, p) {
   if (!p.alive || match.ended) return;
   p.alive = false;
+  p.outAt = Date.now();
   p.placement = match.alive;
   match.alive--;
 
@@ -230,13 +232,14 @@ function finish(match) {
   for (const p of match.players.values()) {
     if (p.alive) {
       p.alive = false;
+      p.outAt = Date.now();
       p.placement = 1;
     }
   }
   const results = [...match.players.values()]
     .sort((a, b) => a.placement - b.placement)
-    .map((p) => ({ id: p.id, name: p.name, bot: p.bot, level: p.level, placement: p.placement, kos: p.kos, sent: p.sent }));
-  match.onEnd(results);
+    .map((p) => ({ id: p.id, name: p.name, bot: p.bot, level: p.level, placement: p.placement, kos: p.kos, sent: p.sent, ms: Math.max(0, p.outAt - match.startAt) }));
+  match.onEnd(results, { ms: Date.now() - match.startAt, size: match.players.size, kind: match.kind });
 }
 
 // the boards one person gets to see. their target and the players aiming at them come first, then whoever fits

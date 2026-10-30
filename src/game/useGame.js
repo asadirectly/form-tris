@@ -61,6 +61,7 @@ export function useGame(mode, roundId, onScore, versus) {
     const fx = makeEffects();
     const ctx = canvasRef.current.getContext('2d');
     const input = { dir: 0, das: 0, arr: 0, left: false, right: false };
+    const clears = { tspins: 0, tetrises: 0, perfects: 0, combo: 0 };
     gameRef.current = game;
     pausedRef.current = false;
 
@@ -97,6 +98,12 @@ export function useGame(mode, roundId, onScore, versus) {
     function handleClear(e) {
       addClearEffects(fx, e);
 
+      // counted for the profile, the server checks them against the lines before it believes them
+      if (e.name === 'TETRIS') clears.tetrises++;
+      if (e.name.startsWith('T-SPIN') && e.rows.length > 0) clears.tspins++;
+      if (e.perfect) clears.perfects++;
+      clears.combo = Math.max(clears.combo, e.combo);
+
       let kind = 'clear';
       if (e.name === 'TETRIS') kind = 'tetris';
       else if (e.name.startsWith('T-SPIN')) kind = 'tspin';
@@ -127,16 +134,14 @@ export function useGame(mode, roundId, onScore, versus) {
           const best = saveBest(game);
           setResult({ won: e.won, score: game.score, lines: game.lines, level: game.level, time: game.time, best });
 
-          // sprint only counts when it was finished, and a score of 0 isn't worth saving
-          if (mode === 'sprint' ? e.won : game.score > 0) {
-            const stats = { score: game.score, lines: game.lines, level: game.level, time: Math.round(game.time), won: e.won };
-            submitScore(roundId, stats)
-              .then((saved) => {
-                setResult((r) => ({ ...r, rank: saved.rank }));
-                onScore(); // the player's discount may have changed
-              })
-              .catch((err) => setResult((r) => ({ ...r, rankError: err.message })));
-          }
+          // every finished round goes to the server, it decides what counts for the leaderboard and the profile
+          const stats = { score: game.score, lines: game.lines, level: game.level, time: Math.round(game.time), won: e.won, ...clears };
+          submitScore(roundId, stats)
+            .then((saved) => {
+              setResult((r) => ({ ...r, rank: saved.rank }));
+              onScore(saved); // the player's discount may have changed, and they may have unlocked something
+            })
+            .catch((err) => setResult((r) => ({ ...r, rankError: err.message })));
         }
       }
     }

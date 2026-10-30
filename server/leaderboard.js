@@ -70,6 +70,16 @@ export function getPrice(userId) {
   return Math.round((config.roundCost * (100 - getDiscount(userId))) / 100);
 }
 
+// a player's best result and place on each board, null where they have none. the profile page reads this
+export function getBests(userId) {
+  const result = {};
+  for (const mode of Object.keys(boards)) {
+    const place = sorted(mode).findIndex((entry) => entry.userId === userId);
+    result[mode] = place >= 0 ? { value: boards[mode][userId].value, rank: place + 1 } : null;
+  }
+  return result;
+}
+
 export function getBoards(userId) {
   const result = {};
 

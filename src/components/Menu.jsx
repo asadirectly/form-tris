@@ -2,11 +2,13 @@ import Logo from './Logo.jsx';
 import Keys from './Keys.jsx';
 import { MODES, MENU_MODES, MULTI, MIN_PLAYERS, LOBBY_KINDS } from '../game/constants.js';
 import { getBest } from '../format.js';
+import PlayerLink, { Avatar, Badges } from './PlayerLink.jsx';
 
 const planned = [
   { name: 'Shop', blurb: 'Themes, cosmetics, etc.', color: 'yellow' },
   { name: 'Settings', blurb: 'Dark mode, light mode, maybe keybinds.', color: 'green' },
   { name: 'Puyo Puyo', blurb: 'A new game mode.', color: 'purple' },
+  { name: 'Block Blast', blurb: 'Another new game mode.', color: 'cyan' },
 ];
 
 const places = ['1st', '2nd', '3rd'];
@@ -14,7 +16,7 @@ const places = ['1st', '2nd', '3rd'];
 // the texture strip on the end of each mode bar
 const art = { normal: '/img/Pattern01.png', multi: '/img/Pattern03.png', sprint: '/img/Pattern02.png' };
 
-export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onLogout }) {
+export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onPlayers, onProfile, onLogout }) {
   let cost = 'FREE';
   if (!user.playsFree) {
     cost = `${user.roundCost} Digipogs`;
@@ -26,9 +28,8 @@ export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onLo
       <header className="topbar">
         <Logo small />
         <div className="user">
-          {user.playsFree && <span className="badge owner">Owner</span>}
-          {user.isAdmin && <span className="badge admin">Admin</span>}
-          <span className="username">{user.name}</span>
+          <Badges ids={user.badges} />
+          <PlayerLink id={user.id} name={user.name} onProfile={onProfile} className="username" />
           <button className="btn small ghost" onClick={onLogout}>
             Log out
           </button>
@@ -86,6 +87,27 @@ export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onLo
           <button className="btn small ghost perks-btn" onClick={onLeaderboard}>
             View rankings
           </button>
+        </div>
+
+        <div className="box profile-box">
+          <h2 className="box-title">Profile</h2>
+          <div className="me-row">
+            <Avatar picture={user.picture} size={48} />
+            <div>
+              <PlayerLink id={user.id} name={user.name} onProfile={onProfile} className="me-name" />
+              <div className="me-badges">
+                <Badges ids={user.badges} />
+              </div>
+            </div>
+          </div>
+          <div className="profile-btns">
+            <button className="btn small ghost" onClick={() => onProfile(user.id)}>
+              My profile
+            </button>
+            <button className="btn small ghost" onClick={onPlayers}>
+              Find players
+            </button>
+          </div>
         </div>
 
         <div className="box">

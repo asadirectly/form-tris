@@ -3,6 +3,7 @@ import Logo from './Logo.jsx';
 import { MODES } from '../game/constants.js';
 import { getLeaderboards } from '../api.js';
 import { formatTime } from '../format.js';
+import PlayerLink, { Badges } from './PlayerLink.jsx';
 
 const labels = { normal: 'Score', sprint: 'Time' };
 
@@ -10,7 +11,7 @@ function showValue(mode, value) {
   return mode === 'sprint' ? formatTime(value) : value.toLocaleString();
 }
 
-export default function Leaderboard({ user, onBack }) {
+export default function Leaderboard({ user, onBack, onProfile }) {
   const [boards, setBoards] = useState(null);
   const [error, setError] = useState('');
 
@@ -51,7 +52,8 @@ export default function Leaderboard({ user, onBack }) {
                   {boards[mode].entries.map((entry) => (
                     <li key={entry.userId} className={entry.userId === user.id ? 'rank-row me' : 'rank-row'}>
                       <span className="rank-pos">{entry.rank}</span>
-                      <span className="rank-name">{entry.name}</span>
+                      <PlayerLink id={entry.userId} name={entry.name} onProfile={onProfile} className="rank-name" />
+                      <Badges ids={entry.badges} />
                       {entry.discount > 0 && <span className="tag">{entry.discount}% off</span>}
                       <span className="rank-value">{showValue(mode, entry.value)}</span>
                     </li>
@@ -60,7 +62,7 @@ export default function Leaderboard({ user, onBack }) {
                   {boards[mode].you && (
                     <li className="rank-row me">
                       <span className="rank-pos">{boards[mode].you.rank}</span>
-                      <span className="rank-name">{user.name}</span>
+                      <PlayerLink id={user.id} name={user.name} onProfile={onProfile} className="rank-name" />
                       <span className="rank-value">{showValue(mode, boards[mode].you.value)}</span>
                     </li>
                   )}

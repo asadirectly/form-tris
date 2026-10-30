@@ -17,3 +17,12 @@ export function getBest(mode) {
     return null;
   }
 }
+
+// 3725000 -> "1h 2m", 250000 -> "4m 10s"
+export function formatPlaytime(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const min = Math.floor((totalSec % 3600) / 60);
+  if (hours > 0) return `${hours}h ${min}m`;
+  return `${min}m ${totalSec % 60}s`;
+}
