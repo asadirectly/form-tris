@@ -8,7 +8,8 @@ export const config = {
   // the http api docs say new endpoints live under /api (/api/v1 is the old one)
   apiPrefix: '/api',
 
-  roundCost: 30,
+  roundCost: 30, // normal and 40L, per round
+  multiplayerCost: 30, // the fee to create or join a multiplayer lobby as a player. leaderboard discounts apply to it too
   discounts: [25, 15, 10], // percent off for 1st, 2nd and 3rd place
   boardSize: 10, // rows shown on each leaderboard
   maxLobbies: 100, // multiplayer lobbies at once

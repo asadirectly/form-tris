@@ -14,12 +14,26 @@ export function readLoginToken(loginToken) {
 
     return {
       user: { id: Number(payload.id), name: String(name) },
+      balance: Number.isFinite(payload.digipogs) ? payload.digipogs : null, // only if formbar put it in the token
       refreshToken: payload.refreshToken || null,
       exp: payload.exp ? Number(payload.exp) : null, // seconds
     };
   } catch {
     return null;
   }
+}
+
+// formbar has no documented balance lookup. if the login token carries the balance we remember it and take off what we charge,
+// otherwise it stays unknown and formbar itself refuses a payment the player can't afford
+const balances = new Map();
+
+export function rememberBalance(userId, balance) {
+  if (balance == null) balances.delete(userId);
+  else balances.set(userId, balance);
+}
+
+export function getBalance(userId) {
+  return balances.has(userId) ? balances.get(userId) : null;
 }
 
 export function isExpired(exp) {
@@ -37,7 +51,8 @@ export function oauthUrl(refreshToken) {
 
 // digipog transfers are a plain POST to /api/digipogs/transfer with no auth header,
 // formbar checks the sender's pin instead. same as jukebar and formbartetris
-export async function charge(userId, amount, pin) {
+// unsure is true when we can't tell if formbar took the money (no answer, or an error it didn't explain)
+export async function charge(userId, amount, pin, reason = 'Form-Tris! round') {
   const url = config.formbarApiUrl + config.apiPrefix + '/digipogs/transfer';
 
   let res;
@@ -51,7 +66,7 @@ export async function charge(userId, amount, pin) {
         to: Number(config.poolId),
         amount: Number(amount),
         pin: Number(pin),
-        reason: 'Form-Tris! round',
+        reason,
         pool: true, // the destination is a pool, not a user
       }),
       signal: AbortSignal.timeout(15000),
@@ -59,12 +74,15 @@ export async function charge(userId, amount, pin) {
     body = await res.json().catch(() => ({}));
   } catch (err) {
     console.log('formbar transfer request failed:', url, err.message);
-    return { ok: false, message: 'could not reach Formbar, please try again' };
+    return { ok: false, unsure: true, message: 'could not reach Formbar, please try again' };
   }
 
   // formbar answers { success, message }: 200 when it worked, 400 with a message when it didn't
   const ok = res.ok && body.success === true;
   if (!ok) console.log('formbar transfer failed:', res.status, url, JSON.stringify(body).slice(0, 300));
 
-  return { ok, message: body.message || body.error || 'the payment was declined' };
+  // only a clear "no" from formbar means nothing was taken
+  const unsure = !ok && !(res.status < 500 && body.success === false);
+  if (ok && balances.has(userId)) balances.set(userId, Math.max(0, balances.get(userId) - Number(amount)));
+  return { ok, unsure, message: body.message || body.error || 'the payment was declined' };
 }

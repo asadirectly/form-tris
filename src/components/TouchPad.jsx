@@ -1,12 +1,14 @@
-// on-screen buttons for phones, they send the same key events the keyboard does
+import { getActiveKeys } from '../game/keys.js';
+
+// on-screen buttons for phones, they send the same key events the keyboard does (using whatever keys the player set)
 const buttons = [
-  { label: 'Left', code: 'ArrowLeft', hold: true },
-  { label: 'Down', code: 'ArrowDown', hold: true },
-  { label: 'Right', code: 'ArrowRight', hold: true },
-  { label: 'Hold', code: 'KeyC' },
-  { label: 'Rot back', code: 'KeyZ' },
-  { label: 'Rotate', code: 'ArrowUp' },
-  { label: 'Drop', code: 'Space' },
+  { label: 'Left', action: 'left', hold: true },
+  { label: 'Down', action: 'softDrop', hold: true },
+  { label: 'Right', action: 'right', hold: true },
+  { label: 'Hold', action: 'hold' },
+  { label: 'Rot back', action: 'rotateCcw' },
+  { label: 'Rotate', action: 'rotateCw' },
+  { label: 'Drop', action: 'hardDrop' },
 ];
 
 function press(code) {
@@ -22,14 +24,14 @@ export default function TouchPad() {
     <div className="touchpad">
       {buttons.map((b) => (
         <button
-          key={b.code}
+          key={b.action}
           className={`pad ${b.hold ? 'move' : 'act'}`}
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId);
-            press(b.code);
+            press(getActiveKeys()[b.action][0]);
           }}
-          onPointerUp={() => release(b.code)}
-          onPointerCancel={() => release(b.code)}
+          onPointerUp={() => release(getActiveKeys()[b.action][0])}
+          onPointerCancel={() => release(getActiveKeys()[b.action][0])}
           onContextMenu={(e) => e.preventDefault()}
         >
           {b.label}

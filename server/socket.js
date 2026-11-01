@@ -2,8 +2,9 @@ import { WebSocketServer } from 'ws';
 import { config } from './config.js';
 import { isExpired } from './formbar.js';
 import { clients, sendTo } from './hub.js';
+import { sendInvite, declineInvite } from './invites.js';
 import {
-  createLobby, joinLobby, leaveLobby, resume, setReady, setRole, updateSettings, addBot, setBotLevel,
+  leaveLobby, resume, setReady, setRole, updateSettings, addBot, setBotLevel,
   removeBot, kick, giveHost, startLobbyMatch, gameMessage, listPublic, lobbyOf,
 } from './lobbies.js';
 
@@ -12,8 +13,18 @@ const isProd = process.env.NODE_ENV === 'production';
 // what a player can ask for, each one checks who is asking and whether it's allowed
 const handlers = {
   list: (c) => sendTo(c.user.id, { type: 'lobbies', lobbies: listPublic() }),
-  create: (c, m) => createLobby(c.user, m),
-  join: (c, m) => joinLobby(c.user, m),
+  // creating and joining cost money, so they go through POST /api/multiplayer/enter (entry.js) and not through here
+  // an invite is answered with inviteResult so the profile that sent it can say what happened
+  invite: (c, m) => {
+    try {
+      const name = sendInvite(c.user, m.to);
+      sendTo(c.user.id, { type: 'inviteResult', to: Number(m.to), ok: true, message: `Invite sent to ${name}` });
+    } catch (err) {
+      if (!err.isUser) throw err;
+      sendTo(c.user.id, { type: 'inviteResult', to: Number(m.to), ok: false, message: err.message });
+    }
+  },
+  inviteDecline: (c, m) => declineInvite(c.user.id, m.id),
   leave: (c) => {
     leaveLobby(c.user.id);
     sendTo(c.user.id, { type: 'lobby', lobby: null });
@@ -28,6 +39,7 @@ const handlers = {
   host: (c, m) => giveHost(c.user.id, m.id),
   start: (c) => startLobbyMatch(c.user.id),
   attack: (c, m) => gameMessage(c.user.id, m),
+  lines: (c, m) => gameMessage(c.user.id, m),
   board: (c, m) => gameMessage(c.user.id, m),
   dead: (c, m) => gameMessage(c.user.id, m),
   target: (c, m) => gameMessage(c.user.id, m),

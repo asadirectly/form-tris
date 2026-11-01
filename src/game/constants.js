@@ -7,8 +7,8 @@ export const LOCK_DELAY = 500;
 export const MAX_RESETS = 15;
 export const DAS = 150; // ms before a held left/right starts repeating
 export const ARR = 40; // ms between repeats
-export const SOFT_DROP = 8; // soft drop is this many times faster than gravity
-export const SOFT_DROP_MIN_MS = 60; // but never faster than one row per this many ms (raise it to slow soft drop down more)
+export const SOFT_DROP = 20; // soft drop is this many times faster than gravity, the same as the tetris guideline
+export const SOFT_DROP_MIN_MS = 16; // but never faster than one row per frame, so it still looks like falling at high levels
 export const SPRINT_LINES = 40;
 
 // multiplayer lobbies, the server enforces these limits and the lobby screens read them
@@ -16,7 +16,11 @@ export const MIN_PLAYERS = 2;
 export const LOBBY_KINDS = {
   standard: { name: 'Standard', max: 32, blurb: 'Classic versus. Garbage, targeting and last one standing.' },
   royale: { name: 'Battle Royale', max: 99, blurb: 'Up to 99 players. KOs make your attacks stronger.' },
+  rush: { name: 'Rush', max: 32, blurb: 'A race. The first to clear the lines wins. No garbage.' },
 };
+
+// rush: how many lines the winner has to clear, the host picks
+export const RUSH_LINES = { min: 1, max: 999, default: 40 };
 
 export const MODES = {
   normal: { name: 'Normal', blurb: 'Endless. Clear lines, progressive diffulty, blah blah blah' },
@@ -24,7 +28,7 @@ export const MODES = {
 };
 
 // the multiplayer bar on the menu, it opens the lobbies instead of starting a round
-export const MULTI = { name: 'Multiplayer', blurb: 'Standard (up to 32) or Battle Royale (up to 99). CPUs welcome.' };
+export const MULTI = { name: 'Multiplayer', blurb: 'Standard, Battle Royale (up to 99) or a Rush race. CPUs welcome.' };
 export const MENU_MODES = ['normal', 'multi', 'sprint']; // order of the bars on the menu
 
 export const COLORS = {

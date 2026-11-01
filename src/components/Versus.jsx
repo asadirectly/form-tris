@@ -23,12 +23,13 @@ function split(ids, order) {
   return [sorted.slice(0, half), sorted.slice(half)];
 }
 
-function Match({ socket, seed, kind, you, boards, ids, target, alive, total, place, kos, badges, names, order, onSpectate, onLeave }) {
-  const versus = useRef({ socket, seed }).current;
+function Match({ socket, seed, kind, goal, you, boards, ids, target, alive, total, place, kos, badges, names, order, onSpectate, onLeave }) {
+  const versus = useRef({ socket, seed, rush: kind === 'rush' }).current;
   const { canvasRef, boxRef, hud, popups, removePopup, result, getTime } = useGame('versus', null, null, versus);
   const [aim, setAim] = useState('random');
   const royale = kind === 'royale';
-  const choices = royale ? aims : aims.slice(0, 3);
+  const rush = kind === 'rush';
+  const choices = rush ? [] : royale ? aims : aims.slice(0, 3);
 
   function pick(mode) {
     setAim(mode);
@@ -65,14 +66,15 @@ function Match({ socket, seed, kind, you, boards, ids, target, alive, total, pla
 
         <div className="box stats">
           <Stat big label="Score" value={hud.score.toLocaleString()} />
-          <Stat label="Lines" value={hud.lines} />
+          <Stat label="Lines" value={rush ? `${hud.lines}/${goal}` : hud.lines} />
           <Stat label="Level" value={hud.level} />
           <Stat label="Alive" value={`${alive}/${total}`} />
-          <Stat label="KOs" value={kos} />
+          {!rush && <Stat label="KOs" value={kos} />}
           {royale && <Stat label="Badges" value={badges} />}
           <Stat label="Time" value={<Timer getTime={getTime} />} />
         </div>
 
+        {!rush && (
         <div className="chips aim">
           {choices.map((a) => (
             <button key={a.mode} className={aim === a.mode ? 'chip pick on' : 'chip pick'} onClick={() => pick(a.mode)} title={`Key ${a.key}`}>
@@ -80,6 +82,7 @@ function Match({ socket, seed, kind, you, boards, ids, target, alive, total, pla
             </button>
           ))}
         </div>
+        )}
 
         <button className="btn small ghost pause" onClick={onLeave}>
           Leave
@@ -90,9 +93,11 @@ function Match({ socket, seed, kind, you, boards, ids, target, alive, total, pla
         <div className="mode-tag">{LOBBY_KINDS[kind].name}</div>
 
         <div className="board-row">
-          <div className="meter danger" title="Garbage coming">
-            <div className="meter-fill" style={{ height: `${Math.min(hud.incoming / 12, 1) * 100}%` }} />
-          </div>
+          {!rush && (
+            <div className="meter danger" title="Garbage coming">
+              <div className="meter-fill" style={{ height: `${Math.min(hud.incoming / 12, 1) * 100}%` }} />
+            </div>
+          )}
 
           <div className="board-box" ref={boxRef}>
             <canvas ref={canvasRef} width={COLS * CELL} height={(ROWS - HIDDEN) * CELL} />
@@ -125,10 +130,12 @@ function Match({ socket, seed, kind, you, boards, ids, target, alive, total, pla
                     <dt>Lines</dt>
                     <dd>{hud.lines}</dd>
                   </div>
-                  <div>
-                    <dt>KOs</dt>
-                    <dd>{kos}</dd>
-                  </div>
+                  {!rush && (
+                    <div>
+                      <dt>KOs</dt>
+                      <dd>{kos}</dd>
+                    </div>
+                  )}
                 </dl>
                 <button className="btn" onClick={onSpectate}>
                   Spectate
@@ -141,7 +148,11 @@ function Match({ socket, seed, kind, you, boards, ids, target, alive, total, pla
           </div>
         </div>
 
-        <p className="hint">Arrows move · Up/X rotate · Z back · Space drop · C hold · 1-{royale ? 4 : 3} aim · click a board to target it</p>
+        <p className="hint">
+          {rush
+            ? `First to clear ${goal} lines wins. No garbage in a rush.`
+            : `Arrows move · Up/X rotate · Z back · Space drop · C hold · 1-${royale ? 4 : 3} aim · click a board to target it`}
+        </p>
       </div>
 
       <div className="side">
@@ -190,7 +201,7 @@ function Spectate({ socket, kind, boards, ids, alive, total, names, order, follo
   );
 }
 
-function Results({ results, you, onDone, onLeave, onProfile }) {
+function Results({ results, kind, you, onDone, onLeave, onProfile }) {
   const mine = results.find((r) => r.id === you);
   const top = results.slice(0, 10);
   const label = (r) => (r.bot ? `${r.name} Lv ${r.level}` : r.name);
@@ -205,14 +216,14 @@ function Results({ results, you, onDone, onLeave, onProfile }) {
               <li key={r.id} className={r.id === you ? 'rank-row me' : 'rank-row'}>
                 <span className="rank-pos">{r.placement}</span>
                 <PlayerLink id={r.bot ? '' : r.id} name={label(r)} onProfile={onProfile} className="rank-name" />
-                <span className="rank-value">{r.kos} KO</span>
+                <span className="rank-value">{kind === 'rush' ? `${r.lines} L` : `${r.kos} KO`}</span>
               </li>
             ))}
             {mine && mine.placement > 10 && (
               <li className="rank-row me">
                 <span className="rank-pos">{mine.placement}</span>
                 <PlayerLink id={mine.id} name={label(mine)} onProfile={onProfile} className="rank-name" />
-                <span className="rank-value">{mine.kos} KO</span>
+                <span className="rank-value">{kind === 'rush' ? `${mine.lines} L` : `${mine.kos} KO`}</span>
               </li>
             )}
           </ul>
@@ -293,6 +304,7 @@ export default function Versus({ socket, lobby, game, onDone, onLeave, onProfile
           socket={socket}
           seed={game.seed}
           kind={game.kind}
+          goal={game.lines}
           you={you}
           boards={boards}
           ids={ids}
@@ -308,7 +320,7 @@ export default function Versus({ socket, lobby, game, onDone, onLeave, onProfile
           onLeave={onLeave}
         />
       )}
-      {results && <Results results={results} you={you} onDone={onDone} onLeave={onLeave} onProfile={onProfile} />}
+      {results && <Results results={results} kind={game.kind} you={you} onDone={onDone} onLeave={onLeave} onProfile={onProfile} />}
     </>
   );
 }

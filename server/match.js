@@ -6,7 +6,7 @@ import { sendTo, sendMany } from './hub.js';
 const COUNTDOWN = 3000; // the game's own countdown, bots wait it out too
 const TICK = 50;
 const PREVIEW_EVERY = 250; // opponent boards go out four times a second
-const PREVIEW_COUNT = { standard: 31, royale: 16 }; // boards one player is sent, royale only gets a handful
+const PREVIEW_COUNT = { standard: 31, royale: 16, rush: 31 }; // boards one player is sent, royale only gets a handful
 const AFK_MS = 40000; // a game that never locks a piece in this long is frozen or abandoned
 const SUDDEN_AFTER = 180000; // after 3 minutes garbage starts piling on everyone so matches always end
 const SUDDEN_EVERY = 10000;
@@ -30,6 +30,7 @@ export function startMatch(lobby, onEnd) {
       alive: true,
       placement: 0,
       kos: 0,
+      lines: 0, // rush: lines cleared so far
       badges: 0,
       sent: 0, // lines that actually went out
       claimed: 0, // lines a human's game said it sent, checked against a budget
@@ -60,6 +61,7 @@ export function startMatch(lobby, onEnd) {
   const match = {
     lobby,
     kind: lobby.kind,
+    target: lobby.kind === 'rush' ? lobby.lines : 0, // rush: lines needed to win
     seed,
     startAt: now + COUNTDOWN,
     players,
@@ -106,7 +108,7 @@ function tick(match) {
 
   // sudden death: garbage for everybody, a little more every 30 seconds
   const elapsed = now - match.startAt;
-  if (elapsed > SUDDEN_AFTER && now - match.lastSudden >= SUDDEN_EVERY) {
+  if (match.kind !== 'rush' && elapsed > SUDDEN_AFTER && now - match.lastSudden >= SUDDEN_EVERY) {
     match.lastSudden = now;
     const lines = 1 + Math.floor((elapsed - SUDDEN_AFTER) / 30000);
     for (const p of match.players.values()) if (p.alive) deliver(p, lines, null);
@@ -129,7 +131,11 @@ function botTurn(match, p, now) {
   p.height = stackHeight(p.board);
   p.nextAt = now + botDelay(p.level);
 
-  if (!placed || p.game.state === 'over') eliminate(match, p);
+  if (!placed || p.game.state === 'over') return eliminate(match, p);
+  if (match.kind === 'rush') {
+    p.lines = p.game.lines;
+    if (p.lines >= match.target) finishRush(match, p);
+  }
 }
 
 // garbage lands on the target, bots take it into their own game and people get told
@@ -173,7 +179,7 @@ function pickTarget(match, from) {
 }
 
 function sendAttack(match, from, lines) {
-  if (!from.alive || match.ended) return;
+  if (!from.alive || match.ended || match.kind === 'rush') return; // a rush is a race, nothing is sent
 
   // every KO badge makes attacks 25% stronger in battle royale
   if (match.kind === 'royale') lines = Math.ceil(lines * (1 + 0.25 * from.badges));
@@ -225,6 +231,25 @@ function eliminate(match, p) {
   if (match.alive <= 1) finish(match);
 }
 
+// the first player to reach the line goal wins. the others are placed by how far they got
+function finishRush(match, winner) {
+  if (match.ended || !winner.alive) return;
+  const rest = [...match.players.values()].filter((p) => p.alive && p !== winner);
+  rest.sort((a, b) => b.lines - a.lines);
+
+  const now = Date.now();
+  winner.alive = false;
+  winner.outAt = now;
+  winner.placement = 1;
+  rest.forEach((p, i) => {
+    p.alive = false;
+    p.outAt = now;
+    p.placement = i + 2;
+  });
+  match.alive = 0;
+  finish(match);
+}
+
 function finish(match) {
   if (match.ended) return;
   stopMatch(match);
@@ -238,8 +263,8 @@ function finish(match) {
   }
   const results = [...match.players.values()]
     .sort((a, b) => a.placement - b.placement)
-    .map((p) => ({ id: p.id, name: p.name, bot: p.bot, level: p.level, placement: p.placement, kos: p.kos, sent: p.sent, ms: Math.max(0, p.outAt - match.startAt) }));
-  match.onEnd(results, { ms: Date.now() - match.startAt, size: match.players.size, kind: match.kind });
+    .map((p) => ({ id: p.id, name: p.name, bot: p.bot, level: p.level, placement: p.placement, kos: p.kos, sent: p.sent, lines: p.lines, ms: Math.max(0, p.outAt - match.startAt) }));
+  match.onEnd(results, { ms: Date.now() - match.startAt, size: match.players.size, kind: match.kind, target: match.target });
 }
 
 // the boards one person gets to see. their target and the players aiming at them come first, then whoever fits
@@ -318,7 +343,15 @@ export function matchMessage(match, userId, msg) {
   // nothing else counts before the countdown is over
   if (now < match.startAt - 1000) return;
 
-  if (msg.type === 'attack') {
+  if (msg.type === 'lines') {
+    // a rush race: the player's game says how many lines it has cleared, checked against what is possible
+    const total = msg.lines;
+    if (match.kind !== 'rush' || !Number.isInteger(total) || total <= p.lines || total > p.lines + 4) return;
+    if (total > Math.max(0, (now - match.startAt) / 1000) * 12 + 4) return;
+    p.lines = total;
+    p.lastActive = now;
+    if (p.lines >= match.target) finishRush(match, p);
+  } else if (msg.type === 'attack') {
     const lines = msg.lines;
     if (!Number.isInteger(lines) || lines < 1 || lines > 10) return;
 

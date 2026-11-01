@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
-import { LOBBY_KINDS, MIN_PLAYERS } from '../src/game/constants.js';
+import { LOBBY_KINDS, MIN_PLAYERS, RUSH_LINES } from '../src/game/constants.js';
 import { config } from './config.js';
 import { sendTo, sendMany } from './hub.js';
 import { startMatch, stopMatch, matchMessage, playerLeft } from './match.js';
-import { recordMatch, badgesFor } from './profiles.js';
+import { recordMatch, badgesFor, banOf } from './profiles.js';
+import { addCredit } from './shop.js';
 
 const lobbies = new Map(); // code -> lobby
 const inLobby = new Map(); // member id -> lobby, a person can only be in one at a time
@@ -17,6 +18,18 @@ export function fail(message) {
   const err = new Error(message);
   err.isUser = true;
   return err;
+}
+
+// the owner plays free, everyone else paid an entry fee to be a player (see entry.js). spectating is free
+function mayPlay(member) {
+  return member.paid || Number(member.id) === config.ownerId;
+}
+
+function checkBan(userId) {
+  const ban = banOf(userId);
+  if (!ban) return;
+  const until = ban.until ? ` until ${new Date(ban.until).toLocaleString()}` : '';
+  throw fail(`you are banned from multiplayer${until}${ban.reason ? `: ${ban.reason}` : ''}`);
 }
 
 function playersIn(lobby) {
@@ -92,12 +105,28 @@ function readSettings(input, old, userName, canName) {
   }
   if (isPrivate && !password) throw fail('private lobbies need a password');
 
-  return { kind, max, name, isPrivate, password };
+  // only a rush lobby has a line goal
+  let lines = RUSH_LINES.default;
+  if (old && old.lines) lines = old.lines;
+  if (input.lines !== undefined) {
+    if (!Number.isInteger(input.lines) || input.lines < RUSH_LINES.min || input.lines > RUSH_LINES.max) {
+      throw fail(`a rush is ${RUSH_LINES.min} to ${RUSH_LINES.max} lines`);
+    }
+    lines = input.lines;
+  }
+
+  return { kind, max, name, isPrivate, password, lines };
+}
+
+// everything that could make a new lobby fail, so entry.js can check before taking any money
+export function checkCreate(user, input) {
+  checkBan(user.id);
+  if (lobbies.size >= config.maxLobbies) throw fail('too many lobbies right now, try again later');
+  return readSettings(input || {}, null, user.name, config.adminIds.includes(user.id));
 }
 
 export function createLobby(user, input) {
-  if (lobbies.size >= config.maxLobbies) throw fail('too many lobbies right now, try again later');
-  const settings = readSettings(input || {}, null, user.name, config.adminIds.includes(user.id));
+  const settings = checkCreate(user, input);
 
   leaveLobby(user.id);
   const lobby = {
@@ -105,7 +134,7 @@ export function createLobby(user, input) {
     ...settings,
     hostId: String(user.id),
     status: 'waiting', // waiting -> playing -> waiting
-    members: [{ id: String(user.id), name: user.name, bot: false, role: 'player', ready: false, joinedAt: Date.now() }],
+    members: [{ id: String(user.id), name: user.name, bot: false, role: 'player', paid: true, ready: false, joinedAt: Date.now() }],
     match: null,
     botCount: 0,
     dirty: true,
@@ -114,18 +143,21 @@ export function createLobby(user, input) {
   inLobby.set(String(user.id), lobby);
 }
 
-export function joinLobby(user, input) {
+// looks at a join without doing it. returns the lobby and whether the person would only watch. throws if it can't work
+export function checkJoin(user, input, invited = false) {
   const id = String(user.id);
   const code = String(input.code || '').toUpperCase().trim();
   const lobby = lobbies.get(code);
-  if (inLobby.get(id) === lobby && lobby) return; // already in there
 
-  checkMisses(user.id);
+  checkBan(user.id);
+  if (!invited) checkMisses(user.id);
   if (!lobby) {
-    missed(user.id);
-    throw fail('there is no lobby with that code');
+    if (!invited) missed(user.id);
+    throw fail(invited ? 'that lobby is gone' : 'there is no lobby with that code');
   }
-  if (lobby.password && !passwordMatches(lobby, input.password ?? '')) {
+  if (inLobby.get(id) === lobby) throw fail('you are already in that lobby');
+  // an invite from the lobby's host or a member is the server's own permission to skip the password, it never skips anything else
+  if (!invited && lobby.password && !passwordMatches(lobby, input.password ?? '')) {
     missed(user.id);
     throw fail('wrong password');
   }
@@ -137,6 +169,13 @@ export function joinLobby(user, input) {
   } else if (playersIn(lobby).length >= lobby.max) {
     throw fail('that lobby is full');
   }
+  return { lobby, spectate };
+}
+
+// only entry.js calls this, after the entry fee is handled. watching is always free
+export function joinLobby(user, input, invited = false) {
+  const id = String(user.id);
+  const { lobby, spectate } = checkJoin(user, input, invited);
 
   leaveLobby(user.id);
   lobby.members.push({
@@ -144,12 +183,14 @@ export function joinLobby(user, input) {
     name: user.name,
     bot: false,
     role: spectate ? 'spectator' : 'player',
+    paid: !spectate,
     ready: false,
     joinedAt: Date.now(),
   });
   inLobby.set(id, lobby);
   lobby.dirty = true;
   if (lobby.status === 'playing') sendTo(user.id, startMessage(lobby, id, true));
+  return spectate;
 }
 
 export function leaveLobby(userId) {
@@ -198,8 +239,20 @@ export function setReady(userId, ready) {
   if (!lobby || lobby.status !== 'waiting') return;
   const me = memberOf(lobby, String(userId));
   if (me.role !== 'player') return;
+  if (ready && !mayPlay(me)) throw fail('pay the entry fee to play');
   me.ready = ready;
   lobby.dirty = true;
+}
+
+// moving from watching to playing needs a paid entry (the owner is exempt). entry.js checks this before charging
+export function checkPlay(userId) {
+  const lobby = inLobby.get(String(userId));
+  if (!lobby) throw fail('you are not in a lobby');
+  if (lobby.status !== 'waiting') throw fail('a match is in progress');
+  const me = memberOf(lobby, String(userId));
+  if (me.role === 'player') throw fail('you are already playing');
+  if (playersIn(lobby).length >= lobby.max) throw fail('that lobby is full');
+  return { lobby, me };
 }
 
 export function setRole(userId, role) {
@@ -210,6 +263,7 @@ export function setRole(userId, role) {
 
   if (role === 'player' && me.role !== 'player') {
     if (playersIn(lobby).length >= lobby.max) throw fail('that lobby is full');
+    if (!mayPlay(me)) throw fail('pay the entry fee to play');
     me.role = 'player';
   } else if (role === 'spectator' && me.role !== 'spectator') {
     if (lobby.members.length - playersIn(lobby).length >= config.maxSpectators) throw fail('no room left for spectators');
@@ -219,6 +273,15 @@ export function setRole(userId, role) {
   }
   me.ready = false;
   lobby.dirty = true;
+}
+
+// the fee was paid, so the person plays and keeps their paid spot even if they watch for a bit
+export function startPlaying(userId) {
+  const lobby = inLobby.get(String(userId));
+  const me = lobby && memberOf(lobby, String(userId));
+  if (!me) throw fail('you are not in a lobby');
+  me.paid = true;
+  setRole(userId, 'player');
 }
 
 export function updateSettings(user, input) {
@@ -293,7 +356,7 @@ export function giveHost(userId, targetId) {
 
 // spectate is true for anybody who isn't playing in this match, so their screen only watches
 function startMessage(lobby, you, spectate = false) {
-  return { type: 'start', kind: lobby.kind, seed: lobby.match ? lobby.match.seed : 0, you, spectate };
+  return { type: 'start', kind: lobby.kind, seed: lobby.match ? lobby.match.seed : 0, you, spectate, lines: lobby.kind === 'rush' ? lobby.lines : 0 };
 }
 
 export function startLobbyMatch(userId) {
@@ -345,6 +408,7 @@ function view(lobby) {
     hostId: lobby.hostId,
     status: lobby.status,
     isPrivate: lobby.isPrivate,
+    lines: lobby.lines,
     members: lobby.members.map((m) => ({
       id: m.id,
       name: m.name,
@@ -368,6 +432,7 @@ export function listPublic() {
       id: lobby.id,
       name: lobby.name,
       kind: lobby.kind,
+      lines: lobby.lines,
       max: lobby.max,
       players,
       spectators: lobby.members.length - players,
@@ -376,6 +441,82 @@ export function listPublic() {
     });
   }
   return list.slice(0, 50);
+}
+
+// ---- helpers for invites.js and entry.js
+
+// the lobby a person is in, with the details an invite shows
+export function inviteSource(userId) {
+  const lobby = inLobby.get(String(userId));
+  if (!lobby) return null;
+  return { code: lobby.id, isHost: lobby.hostId === String(userId), ...summary(lobby) };
+}
+
+export function lobbySummary(code) {
+  const lobby = lobbies.get(code);
+  return lobby ? { code, ...summary(lobby) } : null;
+}
+
+function summary(lobby) {
+  return {
+    name: lobby.name,
+    kind: lobby.kind,
+    lines: lobby.lines,
+    players: playersIn(lobby).length,
+    max: lobby.max,
+    isPrivate: lobby.isPrivate,
+    status: lobby.status,
+  };
+}
+
+// true while the person is playing in a running match, they can't hop into another lobby then
+export function inRunningMatch(userId) {
+  const lobby = inLobby.get(String(userId));
+  if (!lobby || lobby.status !== 'playing') return false;
+  const me = memberOf(lobby, String(userId));
+  return !!me && me.role === 'player';
+}
+
+// ---- admin tools, admin.js checks who is asking before it calls these
+
+export function adminLobbies() {
+  return [...lobbies.values()].map((lobby) => {
+    const host = memberOf(lobby, lobby.hostId);
+    return {
+      id: lobby.id,
+      name: lobby.name,
+      kind: lobby.kind,
+      max: lobby.max,
+      status: lobby.status,
+      isPrivate: lobby.isPrivate,
+      host: host ? host.name : '',
+      members: lobby.members.map((m) => ({ id: m.id, name: m.name, bot: m.bot, role: m.role })),
+    };
+  });
+}
+
+// shuts a lobby and sends everyone back to the browser. players who paid to get in are given a saved entry, since the lobby was taken away from them
+export function closeLobby(code) {
+  const lobby = lobbies.get(code);
+  if (!lobby) return false;
+
+  if (lobby.match) stopMatch(lobby.match);
+  for (const m of lobby.members) {
+    if (m.bot) continue;
+    inLobby.delete(m.id);
+    if (m.paid && Number(m.id) !== config.ownerId) addCredit(m.id);
+    sendTo(m.id, { type: 'lobby', lobby: null, notice: 'An admin closed this lobby.' });
+  }
+  lobbies.delete(code);
+  return true;
+}
+
+// takes one person out of whatever lobby they are in
+export function removeFromLobby(userId, notice) {
+  if (!inLobby.has(String(userId))) return false;
+  leaveLobby(userId);
+  sendTo(userId, { type: 'lobby', lobby: null, notice });
+  return true;
 }
 
 export function lobbyOf(userId) {

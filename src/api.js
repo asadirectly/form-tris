@@ -58,6 +58,39 @@ export function chooseRanks(ranks) {
   });
 }
 
+// the shop. the server sets every price, expectedPrice is only what the player was shown
+export function getShop() {
+  return request('/api/shop');
+}
+
+export function buyItem(item, pin, requestId, expectedPrice) {
+  return request('/api/shop/buy', { method: 'POST', body: JSON.stringify({ item, pin, requestId, expectedPrice }) });
+}
+
+// creating a lobby, joining one to play, or going from watching to playing. without confirm the server only checks and
+// answers { quote } (or { joined } when it is free). with confirm, pin, requestId and expectedPrice it pays and joins
+export function enterLobby(body) {
+  return request('/api/multiplayer/enter', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function equipPicture(picture) {
+  return request('/api/profile/picture', { method: 'POST', body: JSON.stringify({ picture }) });
+}
+
+// controls and display options, saved with the profile. send only what changed: { keys } (null for the defaults) and/or { effects }
+export function saveSettings(settings) {
+  return request('/api/settings', { method: 'POST', body: JSON.stringify(settings) });
+}
+
+export function getAnnouncement() {
+  return request('/api/announcement');
+}
+
+// every admin call goes through here, the server checks the player is an admin each time
+export function admin(method, path, body) {
+  return request(`/api/admin${path}`, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+}
+
 export function logout() {
   return request('/api/logout', { method: 'POST' });
 }

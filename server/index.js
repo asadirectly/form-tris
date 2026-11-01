@@ -3,11 +3,14 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import session from 'express-session';
 import { config } from './config.js';
-import { isExpired, oauthUrl, readLoginToken } from './formbar.js';
+import { isExpired, oauthUrl, readLoginToken, rememberBalance, getBalance } from './formbar.js';
+import { enter } from './entry.js';
 import { startRound, finishRound } from './rounds.js';
-import { getBoards, getDiscount, getPrice } from './leaderboard.js';
+import { getBoards, getDiscount, getPrice, getEntryPrice } from './leaderboard.js';
 import { attachSockets } from './socket.js';
-import { touchProfile, publicProfile, searchProfiles, setShownRanks, badgesFor, pictureOf } from './profiles.js';
+import { touchProfile, publicProfile, searchProfiles, setShownRanks, badgesFor, pictureOf, equipPicture, getStatBoards, settingsOf, saveSettings } from './profiles.js';
+import { shopFor, buy, creditsOf } from './shop.js';
+import { adminRouter, getAnnouncement, avatarDir } from './admin.js';
 
 if (!config.sessionSecret || !config.formbarApiUrl || !config.formbarClientUrl) {
   console.error('missing settings, copy .env.example to .env and fill it in');
@@ -20,7 +23,7 @@ const isProd = process.env.NODE_ENV === 'production';
 // needed for secure cookies when a proxy like nginx sits in front
 if (isProd) app.set('trust proxy', 1);
 
-app.use(express.json());
+app.use(express.json({ limit: '400kb' })); // admin picture uploads are the only big ones
 // kept in a variable because the multiplayer sockets read the same login session
 const sessionMiddleware = session({
   secret: config.sessionSecret,
@@ -56,6 +59,7 @@ app.get('/login/callback', async (req, res) => {
     req.session.refreshToken = login.refreshToken;
     req.session.tokenExp = login.exp;
     req.session.user = login.user;
+    rememberBalance(login.user.id, login.balance);
     touchProfile(login.user); // makes sure they have a profile and the right name
     req.session.save(() => res.redirect('/'));
   });
@@ -77,6 +81,10 @@ app.get('/api/me', (req, res) => {
     discounts: config.discounts, // what 1st, 2nd and 3rd place get
     badges: badgesFor(user.id),
     picture: pictureOf(user.id),
+    multiCost: getEntryPrice(user.id), // the multiplayer entry fee, after any discount
+    entries: creditsOf(user.id), // saved entries from a payment that could not be undone
+    balance: getBalance(user.id), // null when formbar didn't tell us
+    settings: settingsOf(user.id), // controls and display options, saved with the profile
   });
 });
 
@@ -107,7 +115,7 @@ app.get('/api/leaderboards', (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(401).json({ error: 'not logged in' });
 
-  const boards = getBoards(user.id);
+  const boards = { ...getBoards(user.id), ...getStatBoards(user.id) };
   for (const mode of Object.keys(boards)) {
     for (const entry of boards[mode].entries) entry.badges = badgesFor(entry.userId);
   }
@@ -125,7 +133,7 @@ app.get('/api/profiles', (req, res) => {
 app.get('/api/profiles/:id', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'not logged in' });
 
-  const profile = /^\d{1,10}$/.test(req.params.id) ? publicProfile(Number(req.params.id)) : null;
+  const profile = /^\d{1,10}$/.test(req.params.id) ? publicProfile(Number(req.params.id), req.session.user.id) : null;
   if (!profile) return res.status(404).json({ error: 'there is no player with that id' });
   res.json(profile);
 });
@@ -136,8 +144,70 @@ app.post('/api/profile/ranks', (req, res) => {
   if (!user) return res.status(401).json({ error: 'not logged in' });
 
   const badges = setShownRanks(user.id, (req.body || {}).ranks);
-  if (!badges) return res.status(400).json({ error: 'you can show up to 2 ranks, and only ones you have earned' });
+  if (!badges) return res.status(400).json({ error: 'you can show up to 2 ranks, and only ones you have earned or bought' });
   res.json({ badges });
+});
+
+// a player picks one of the pictures they own
+app.post('/api/profile/picture', (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(401).json({ error: 'not logged in' });
+
+  const picture = equipPicture(user.id, (req.body || {}).picture);
+  if (!picture) return res.status(400).json({ error: 'you do not own that picture' });
+  res.json({ picture });
+});
+
+// controls and display options. the server checks them again, the same rules as the settings screen
+app.post('/api/settings', (req, res) => {
+  const user = req.session.user;
+  if (!user || isExpired(req.session.tokenExp)) return res.status(401).json({ error: 'not logged in' });
+
+  const saved = saveSettings(user.id, req.body);
+  if (!saved) return res.status(400).json({ error: 'those settings are not allowed' });
+  res.json({ settings: saved });
+});
+
+// ---- the shop. the server works out every price, the browser only sends what it was shown
+
+function paidUser(req, res) {
+  const { user, tokenExp } = req.session;
+  if (!user || isExpired(tokenExp)) {
+    res.status(401).json({ error: user ? 'your Formbar login expired, please log in again' : 'not logged in' });
+    return null;
+  }
+  return user;
+}
+
+app.get('/api/shop', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'not logged in' });
+  const id = req.session.user.id;
+  res.json({ ...shopFor(id), mine: publicProfile(id, id).mine });
+});
+
+app.post('/api/shop/buy', async (req, res) => {
+  const user = paidUser(req, res);
+  if (!user) return;
+  const { item, pin, requestId, expectedPrice } = req.body || {};
+  res.json(await buy(user, item, pin, requestId, expectedPrice));
+});
+
+// creating or joining a lobby as a player costs the entry fee. entry.js checks, charges and puts the player in
+app.post('/api/multiplayer/enter', async (req, res) => {
+  const user = paidUser(req, res);
+  if (!user) return;
+  res.json(await enter(user, req.body || {}));
+});
+
+// ---- the admin panel, every route in there checks the formbar user id again
+app.use('/api/admin', adminRouter);
+
+// uploaded pictures from the admin panel, only files the server checked are ever in this folder
+app.use('/avatars', express.static(avatarDir, { fallthrough: false, maxAge: '1h', setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff') }));
+
+app.get('/api/announcement', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'not logged in' });
+  res.json({ announcement: getAnnouncement() });
 });
 
 app.post('/api/logout', (req, res) => {

@@ -5,9 +5,7 @@ import { drawBoard } from './draw.js';
 import { makeEffects, updateEffects, addClearEffects, addLockFlash } from './effects.js';
 import { submitScore } from '../api.js';
 import { encodeBoard, seededRandom } from './versus.js';
-
-// keys the page shouldn't react to (arrows and space scroll the page)
-const gameKeys = ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Space'];
+import { actionOf } from './keys.js';
 
 function saveBest(game) {
   const sprint = game.mode === 'sprint';
@@ -112,6 +110,8 @@ export function useGame(mode, roundId, onScore, versus) {
       if (e.b2b) addPopup('BACK-TO-BACK', 'b2b');
       if (e.combo >= 1) addPopup(`COMBO x${e.combo}`, 'combo');
       if (e.perfect) addPopup('PERFECT CLEAR', 'perfect');
+      // a rush race is won by lines, the server keeps count from what we report
+      if (versus && versus.rush) versus.socket.send({ type: 'lines', lines: game.lines });
 
       shake(kind === 'clear' && e.rows.length < 3 ? 'shake-small' : 'shake-big');
     }
@@ -125,7 +125,9 @@ export function useGame(mode, roundId, onScore, versus) {
         else if (e.type === 'clear') handleClear(e);
         else if (e.type === 'levelup') addPopup(`LEVEL ${e.level}`, 'level');
         else if (e.type === 'go') addPopup('GO!', 'go');
-        else if (e.type === 'attack') versus.socket.send({ type: 'attack', lines: e.lines });
+        else if (e.type === 'attack') {
+          if (!versus.rush) versus.socket.send({ type: 'attack', lines: e.lines });
+        }
         else if (e.type === 'garbage') shake('shake-big');
         else if (e.type === 'gameover' && versus) {
           versus.socket.send({ type: 'dead' });
@@ -166,50 +168,58 @@ export function useGame(mode, roundId, onScore, versus) {
       moveSide(game, dir);
     }
 
+    // the keys come from the player's settings and are looked up on every press, so a change works right away
     function onKeyDown(e) {
-      if (gameKeys.includes(e.code)) e.preventDefault();
+      const action = actionOf(e.code);
+      if (!action) return;
+      e.preventDefault(); // arrows and space would scroll the page
       if (e.repeat) return;
 
-      if (e.code === 'Escape' || e.code === 'KeyP') {
+      if (action === 'pause') {
         togglePause();
         return;
       }
       if (pausedRef.current) return;
 
-      if (e.code === 'ArrowLeft') {
+      if (action === 'left') {
         input.left = true;
         pressSide(-1);
-      } else if (e.code === 'ArrowRight') {
+      } else if (action === 'right') {
         input.right = true;
         pressSide(1);
-      } else if (e.code === 'ArrowDown') {
+      } else if (action === 'softDrop') {
         game.softDrop = true;
-      } else if (e.code === 'ArrowUp' || e.code === 'KeyX') {
+      } else if (action === 'rotateCw') {
         rotate(game, 1);
-      } else if (e.code === 'KeyZ' || e.code === 'ControlLeft') {
+      } else if (action === 'rotateCcw') {
         rotate(game, -1);
-      } else if (e.code === 'Space') {
+      } else if (action === 'hardDrop') {
         hardDrop(game);
-      } else if (e.code === 'KeyC' || e.code === 'ShiftLeft') {
+      } else if (action === 'hold') {
         holdPiece(game);
       }
     }
 
     function onKeyUp(e) {
-      if (e.code === 'ArrowLeft') {
+      const action = actionOf(e.code);
+      if (action === 'left') {
         input.left = false;
         // fall back to the other direction if it's still held
         if (input.dir === -1) input.dir = input.right ? 1 : 0;
-      } else if (e.code === 'ArrowRight') {
+      } else if (action === 'right') {
         input.right = false;
         if (input.dir === 1) input.dir = input.left ? -1 : 0;
-      } else if (e.code === 'ArrowDown') {
+      } else if (action === 'softDrop') {
         game.softDrop = false;
       }
     }
 
-    // alt-tabbing away pauses so you don't lose a game in the background
+    // alt-tabbing away pauses so you don't lose a game in the background. the keyup never arrives, so let go of everything
     function onBlur() {
+      input.left = false;
+      input.right = false;
+      input.dir = 0;
+      game.softDrop = false;
       if (!pausedRef.current) togglePause();
     }
 

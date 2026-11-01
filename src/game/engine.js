@@ -44,7 +44,7 @@ export function newGame(mode, rng) {
     time: 0,
     won: false,
     softDrop: false,
-    fallTimer: 0,
+    fall: 0, // how far through the current row the piece is, 0 to 1. it keeps its place when the speed changes
     lockTimer: 0,
     lockResets: 0,
     lowestY: 0,
@@ -90,7 +90,7 @@ function isGrounded(game) {
 function spawnPiece(game, type) {
   const size = SHAPES[type][0].length;
   game.piece = { type, rot: 0, x: Math.floor((COLS - size) / 2), y: 1 };
-  game.fallTimer = 0;
+  game.fall = 0;
   game.lockTimer = 0;
   game.lockResets = 0;
   game.lowestY = 1;
@@ -154,11 +154,11 @@ function currentInterval(game) {
   return Math.min(interval, Math.max(interval / SOFT_DROP, SOFT_DROP_MIN_MS));
 }
 
-// how far through its current row the falling piece is, from 0 to just under 1
-// only used for drawing, so the piece glides down instead of jumping a whole row at a time
+// how far through its current row the falling piece is, from 0 to just under 1. only used for drawing,
+// so the piece glides down instead of jumping a whole row at a time
 export function fallProgress(game) {
   if (game.state !== 'playing' || !game.piece || isGrounded(game)) return 0;
-  return Math.min(game.fallTimer / currentInterval(game), 0.999);
+  return Math.min(game.fall, 0.999);
 }
 
 export function update(game, dt) {
@@ -180,27 +180,35 @@ export function update(game, dt) {
 
   game.time += dt;
 
+  // on the ground the piece waits out the lock delay and starts the next row from the top if it slides off
   if (isGrounded(game)) {
+    game.fall = 0;
     game.lockTimer += dt;
     if (game.lockTimer >= LOCK_DELAY) lockPiece(game);
     return;
   }
   game.lockTimer = 0;
 
-  const interval = currentInterval(game);
+  // the fall is kept as a fraction of a row, not as milliseconds. changing the speed (pressing or letting go of soft drop,
+  // a level up) then only changes how fast it moves from here. with milliseconds, time built up at gravity speed
+  // was spent all at once at soft drop speed and the piece dropped many rows in one frame
+  game.fall += dt / currentInterval(game);
 
-  game.fallTimer += dt;
   // the step limit stops a huge dt from looping for ages at high levels
   let steps = 0;
-  while (game.fallTimer >= interval && steps < 25) {
-    game.fallTimer -= interval;
+  while (game.fall >= 1 && steps < 25) {
+    game.fall -= 1;
     steps++;
-    if (!tryDown(game)) break;
+    if (!tryDown(game)) {
+      game.fall = 0;
+      break;
+    }
     if (game.softDrop) {
       game.score += 1;
       game.dirty = true;
     }
   }
+  if (steps === 25) game.fall = 0;
 }
 
 export function moveSide(game, dx) {

@@ -9,7 +9,7 @@ export function openSocket() {
   }
 
   ws.onopen = () => emit('open', {});
-  ws.onclose = () => emit('close', {});
+  ws.onclose = (e) => emit('close', { code: e.code }); // 4000 means the player opened the game in another tab
   ws.onmessage = (e) => {
     try {
       const message = JSON.parse(e.data);
@@ -29,6 +29,9 @@ export function openSocket() {
       return () => {
         listeners[type] = listeners[type].filter((f) => f !== fn);
       };
+    },
+    isOpen() {
+      return ws.readyState === WebSocket.OPEN;
     },
     close() {
       ws.close();

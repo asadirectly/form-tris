@@ -30,6 +30,8 @@
   --blue-dk: #1a4aa0;
   --orange: #fb923c;
   --orange-dk: #a8520f;
+  --pink: #f472b6; /* only used by the Meow rank */
+  --pink-dk: #9d2a63;
 
   --font-display: 'Minecraft', 'Courier New', monospace;
   --font-body: 'Chakra Petch', system-ui, sans-serif;

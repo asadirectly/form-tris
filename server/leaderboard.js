@@ -66,8 +66,21 @@ export function getDiscount(userId) {
 
 // what the player pays right now. formbar only takes whole digipogs (it rounds down anything else),
 // so the discounted price is rounded to the nearest whole one here, where we can see it
-export function getPrice(userId) {
-  return Math.round((config.roundCost * (100 - getDiscount(userId))) / 100);
+export function getPrice(userId, base = config.roundCost) {
+  return Math.round((base * (100 - getDiscount(userId))) / 100);
+}
+
+// the multiplayer entry fee has its own base price, with the same discounts
+export function getEntryPrice(userId) {
+  return getPrice(userId, config.multiplayerCost);
+}
+
+// takes a player off a board (an admin does this for cheated scores). returns true if they were on it
+export function removeScore(userId, mode) {
+  if (!boards[mode] || !boards[mode][userId]) return false;
+  delete boards[mode][userId];
+  save();
+  return true;
 }
 
 // a player's best result and place on each board, null where they have none. the profile page reads this

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
-import { LOBBY_KINDS, MIN_PLAYERS } from '../game/constants.js';
+import { LOBBY_KINDS, MIN_PLAYERS, RUSH_LINES } from '../game/constants.js';
 import PlayerLink, { Badges } from './PlayerLink.jsx';
 
 const levels = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -17,19 +17,19 @@ function LevelSelect({ value, onChange }) {
   );
 }
 
-export default function Lobby({ socket, user, lobby, error, onProfile }) {
+export default function Lobby({ socket, user, lobby, error, onProfile, onEnter, onFind }) {
   const me = lobby.members.find((m) => m.id === String(user.id));
   const isHost = lobby.hostId === me.id;
   const players = lobby.members.filter((m) => m.role === 'player');
   const spectators = lobby.members.filter((m) => m.role === 'spectator');
 
   const [botLevel, setBotLevel] = useState(5);
-  const [draft, setDraft] = useState({ name: lobby.name, kind: lobby.kind, max: lobby.max, isPrivate: lobby.isPrivate, password: '' });
+  const [draft, setDraft] = useState({ name: lobby.name, kind: lobby.kind, max: lobby.max, isPrivate: lobby.isPrivate, password: '', lines: lobby.lines });
 
   // the host edits a copy, it resets whenever the saved settings change
   useEffect(() => {
-    setDraft({ name: lobby.name, kind: lobby.kind, max: lobby.max, isPrivate: lobby.isPrivate, password: '' });
-  }, [lobby.name, lobby.kind, lobby.max, lobby.isPrivate]);
+    setDraft({ name: lobby.name, kind: lobby.kind, max: lobby.max, isPrivate: lobby.isPrivate, password: '', lines: lobby.lines });
+  }, [lobby.name, lobby.kind, lobby.max, lobby.isPrivate, lobby.lines]);
 
   function change(field, value) {
     setDraft((d) => ({ ...d, [field]: value }));
@@ -41,7 +41,7 @@ export default function Lobby({ socket, user, lobby, error, onProfile }) {
 
   function save(e) {
     e.preventDefault();
-    const settings = { ...draft, max: Number(draft.max) };
+    const settings = { ...draft, max: Number(draft.max), lines: Number(draft.lines) };
     if (!user.isAdmin) delete settings.name; // only admins can rename a lobby, the server checks this too
     socket.send({ type: 'settings', ...settings });
   }
@@ -53,6 +53,11 @@ export default function Lobby({ socket, user, lobby, error, onProfile }) {
         <div className="user">
           {isHost && <span className="badge owner">Host</span>}
           <PlayerLink id={user.id} name={user.name} onProfile={onProfile} className="username" />
+          {lobby.status === 'waiting' && (!lobby.isPrivate || isHost) && (
+            <button className="btn small" onClick={onFind}>
+              Invite players
+            </button>
+          )}
           <button className="btn small ghost" onClick={() => socket.send({ type: 'leave' })}>
             Leave
           </button>
@@ -124,7 +129,7 @@ export default function Lobby({ socket, user, lobby, error, onProfile }) {
           <h2 className="box-title">Match</h2>
           <p className="lobby-code">{lobby.id}</p>
           <p className="fine">
-            {LOBBY_KINDS[lobby.kind].name}
+            {LOBBY_KINDS[lobby.kind].name}{lobby.kind === 'rush' ? ` · ${lobby.lines} lines` : ''}
             {lobby.isPrivate ? ' · Private' : ' · Public'}. Share the code to invite people.
           </p>
           <div className="lobby-actions">
@@ -138,7 +143,7 @@ export default function Lobby({ socket, user, lobby, error, onProfile }) {
                 Start match
               </button>
             )}
-            <button className="btn small ghost" onClick={() => socket.send({ type: 'role', role: me.role === 'player' ? 'spectator' : 'player' })}>
+            <button className="btn small ghost" onClick={() => (me.role === 'player' ? socket.send({ type: 'role', role: 'spectator' }) : onEnter({ action: 'play' }))}>
               {me.role === 'player' ? 'Watch instead' : 'Play instead'}
             </button>
           </div>
@@ -180,6 +185,12 @@ export default function Lobby({ socket, user, lobby, error, onProfile }) {
               Max players ({MIN_PLAYERS}-{LOBBY_KINDS[draft.kind].max})
               <input type="number" min={MIN_PLAYERS} max={LOBBY_KINDS[draft.kind].max} value={draft.max} onChange={(e) => change('max', e.target.value)} />
             </label>
+            {draft.kind === 'rush' && (
+              <label>
+                Lines to clear ({RUSH_LINES.min}-{RUSH_LINES.max})
+                <input type="number" min={RUSH_LINES.min} max={RUSH_LINES.max} value={draft.lines} onChange={(e) => change('lines', e.target.value)} />
+              </label>
+            )}
             <label className="check">
               <input type="checkbox" checked={draft.isPrivate} onChange={(e) => change('isPrivate', e.target.checked)} />
               Private (needs a password)
@@ -206,6 +217,12 @@ export default function Lobby({ socket, user, lobby, error, onProfile }) {
                 <span>Max players</span>
                 <b>{lobby.max}</b>
               </li>
+              {lobby.kind === 'rush' && (
+                <li>
+                  <span>Lines to clear</span>
+                  <b>{lobby.lines}</b>
+                </li>
+              )}
             </ul>
           </div>
         )}

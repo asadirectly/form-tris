@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { getProfile, chooseRanks } from '../api.js';
-import { ACHIEVEMENTS, RANKS, MAX_SHOWN_RANKS } from '../game/achievements.js';
+import { getProfile, chooseRanks, equipPicture } from '../api.js';
+import { ACHIEVEMENTS, RANKS } from '../game/achievements.js';
 import { pictureFile } from '../game/pictures.js';
 import { formatTime, formatPlaytime } from '../format.js';
 import { Badges } from './PlayerLink.jsx';
+import { TitlePicker, PicturePicker } from './Pickers.jsx';
+import Fx from './Fx.jsx';
+import { pictureEffect, titlesQuiet } from '../cosmetics.js';
+import { titleColor } from '../titleColor.js';
 
 function formatDate(time) {
   return new Date(time).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -19,13 +23,16 @@ function Cell({ label, value }) {
 }
 
 // a profile opens on top of whatever screen the player is on, so a lobby or a leaderboard is never left
-export default function Profile({ id, user, onChanged, onClose }) {
+export default function Profile({ id, user, lobby, onInvite, onChanged, onClose }) {
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState('');
+  const [inviteNote, setInviteNote] = useState(null); // { ok, message } after pressing Invite to Lobby
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     setProfile(null);
     setError('');
+    setInviteNote(null);
     getProfile(id)
       .then(setProfile)
       .catch((err) => setError(err.message));
@@ -39,13 +46,34 @@ export default function Profile({ id, user, onChanged, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  async function toggleRank(rankId) {
-    const shown = profile.rank.shown;
-    const next = shown.includes(rankId) ? shown.filter((r) => r !== rankId) : [...shown, rankId];
+  // titles are owner, admin, earned ranks and bought ranks. owner and admin don't use up the choices
+  async function toggleTitle(titleId) {
+    const shown = profile.mine.titles;
+    const next = shown.includes(titleId) ? shown.filter((t) => t !== titleId) : [...shown, titleId];
     setError('');
     try {
       const saved = await chooseRanks(next);
-      setProfile((p) => ({ ...p, badges: saved.badges, rank: { ...p.rank, shown: next } }));
+      setProfile((p) => ({ ...p, badges: saved.badges, mine: { ...p.mine, titles: saved.badges } }));
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  // the server decides if the invite is allowed, we only show what it says
+  async function invite() {
+    setInviting(true);
+    setInviteNote(await onInvite(profile.id));
+    setInviting(false);
+  }
+
+  async function pickPicture(picture) {
+    setError('');
+    try {
+      await equipPicture(picture);
+      // an admin picture still wins over this, so ask again instead of guessing
+      const fresh = await getProfile(id);
+      setProfile(fresh);
       onChanged();
     } catch (err) {
       setError(err.message);
@@ -54,6 +82,7 @@ export default function Profile({ id, user, onChanged, onClose }) {
 
   let body = <p className="loading">LOADING...</p>;
   let topRank = null;
+  let accent = null; // the first title a player shows sets their profile color
 
   if (error && !profile) {
     body = <p className="error">{error}</p>;
@@ -62,19 +91,32 @@ export default function Profile({ id, user, onChanged, onClose }) {
     const isMe = profile.id === user.id;
     const count = profile.rank.count;
     topRank = RANKS.find((r) => r.id === profile.rank.top) || null;
+    accent = profile.badges.length > 0 ? titleColor(profile.badges[0]) : null;
     const next = profile.rank.next ? RANKS.find((r) => r.id === profile.rank.next.id) : null;
     const gamesDecided = s.wins + s.losses;
+    // only while we are in a lobby that has not started, and only the host can invite to a private one
+    const canInvite = !!lobby && lobby.status === 'waiting' && (!lobby.isPrivate || String(lobby.hostId) === String(user.id));
 
     body = (
       <>
         <div className="profile-head">
-          <img className="profile-pic" src={pictureFile(profile.picture)} alt="" style={{ '--c': topRank ? `var(--${topRank.color})` : 'var(--line)' }} />
+          <Fx effect={pictureEffect(profile.picture)}>
+            <img className="profile-pic" src={pictureFile(profile.picture)} alt="" style={{ '--c': accent ? accent.c : 'var(--line)' }} />
+          </Fx>
           <div className="profile-who">
             <h2 className="profile-name">{profile.name}</h2>
             <div className="profile-badges">
-              <Badges ids={profile.badges} />
+              <Badges ids={profile.badges} quiet={titlesQuiet(profile.picture)} />
             </div>
             <p className="fine">Playing since {formatDate(profile.joined)}</p>
+            {!isMe && canInvite && (
+              <div className="invite-line">
+                <button type="button" className="btn small" disabled={inviting} onClick={invite}>
+                  Invite to Lobby
+                </button>
+                {inviteNote && <span className={inviteNote.ok ? 'fine' : 'error'}>{inviteNote.message}</span>}
+              </div>
+            )}
           </div>
         </div>
 
@@ -89,26 +131,11 @@ export default function Profile({ id, user, onChanged, onClose }) {
               {next ? ` · ${next.need - count} more for ${next.name}` : ' · top rank reached'}
             </p>
 
-            {isMe && profile.rank.earned.length > 0 && (
+            {isMe && profile.mine && (
               <>
-                <p className="fine pick-label">Ranks you show (up to {MAX_SHOWN_RANKS}), Owner and Admin always show</p>
-                <div className="chips aim">
-                  {profile.rank.earned.map((rankId) => {
-                    const rank = RANKS.find((r) => r.id === rankId);
-                    const on = profile.rank.shown.includes(rankId);
-                    return (
-                      <button
-                        key={rankId}
-                        type="button"
-                        className={on ? 'chip pick on' : 'chip pick'}
-                        disabled={!on && profile.rank.shown.length >= MAX_SHOWN_RANKS}
-                        onClick={() => toggleRank(rankId)}
-                      >
-                        {rank.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                <TitlePicker mine={profile.mine} onToggle={toggleTitle} />
+                <PicturePicker mine={profile.mine} byAdmin={profile.pictureByAdmin} onPick={pickPicture} />
+                <p className="fine">More pictures and ranks are in the Shop, and everything here is also in Settings.</p>
               </>
             )}
             {error && <p className="error">{error}</p>}
@@ -157,8 +184,10 @@ export default function Profile({ id, user, onChanged, onClose }) {
             <Cell label="Matches" value={s.matches.toLocaleString()} />
             <Cell label="Match wins" value={s.matchWins.toLocaleString()} />
             <Cell label="KOs" value={s.kos.toLocaleString()} />
+            <Cell label="Wins vs players" value={s.realWins.toLocaleString()} />
+            <Cell label="Royale KOs" value={s.realKos.toLocaleString()} />
           </div>
-          <p className="fine">Wins and losses are 40L races and multiplayer matches. Normal rounds just end when you top out.</p>
+          <p className="fine">Wins and losses are 40L races and multiplayer matches. Normal rounds just end when you top out. Wins vs players and Royale KOs are the ones on the leaderboards, they need another real player in the match.</p>
         </div>
 
         <div className="box">
@@ -187,7 +216,7 @@ export default function Profile({ id, user, onChanged, onClose }) {
 
   return (
     <div className="modal-back" onClick={onClose}>
-      <div className="modal profile" style={topRank ? { '--c': `var(--${topRank.color})`, '--c-dk': `var(--${topRank.color}-dk)` } : undefined} onClick={(e) => e.stopPropagation()}>
+      <div className="modal profile" style={accent ? { '--c': accent.c, '--c-dk': accent.dk } : undefined} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head profile-bar">
           <span>Player profile</span>
           <button type="button" className="btn small ghost" onClick={onClose}>

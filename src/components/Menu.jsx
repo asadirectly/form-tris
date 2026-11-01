@@ -1,12 +1,10 @@
 import Logo from './Logo.jsx';
-import Keys from './Keys.jsx';
+import AccountMenu from './AccountMenu.jsx';
 import { MODES, MENU_MODES, MULTI, MIN_PLAYERS, LOBBY_KINDS } from '../game/constants.js';
 import { getBest } from '../format.js';
-import PlayerLink, { Avatar, Badges } from './PlayerLink.jsx';
 
 const planned = [
-  { name: 'Shop', blurb: 'Themes, cosmetics, etc.', color: 'yellow' },
-  { name: 'Settings', blurb: 'Dark mode, light mode, maybe keybinds.', color: 'green' },
+  { name: 'Light mode', blurb: 'For people who hate their eyes.', color: 'green' },
   { name: 'Puyo Puyo', blurb: 'A new game mode.', color: 'purple' },
   { name: 'Block Blast', blurb: 'Another new game mode.', color: 'cyan' },
 ];
@@ -16,24 +14,24 @@ const places = ['1st', '2nd', '3rd'];
 // the texture strip on the end of each mode bar
 const art = { normal: '/img/Pattern01.png', multi: '/img/Pattern03.png', sprint: '/img/Pattern02.png' };
 
-export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onPlayers, onProfile, onLogout }) {
+export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onPlayers, onShop, onAdmin, onSettings, onProfile, onLogout }) {
   let cost = 'FREE';
   if (!user.playsFree) {
     cost = `${user.roundCost} Digipogs`;
     if (user.discount > 0) cost += ` (${user.discount}% off)`;
+  }
+  // creating or joining a multiplayer lobby costs an entry fee, confirmed before it is charged
+  let multiCost = 'FREE';
+  if (!user.playsFree) {
+    multiCost = `${user.multiCost} Digipogs`;
+    if (user.discount > 0) multiCost += ` (${user.discount}% off)`;
   }
 
   return (
     <div className="menu">
       <header className="topbar">
         <Logo small />
-        <div className="user">
-          <Badges ids={user.badges} />
-          <PlayerLink id={user.id} name={user.name} onProfile={onProfile} className="username" />
-          <button className="btn small ghost" onClick={onLogout}>
-            Log out
-          </button>
-        </div>
+        <AccountMenu user={user} onProfile={onProfile} onPlayers={onPlayers} onSettings={onSettings} onAdmin={onAdmin} onLogout={onLogout} />
       </header>
 
       <section className="play-col">
@@ -51,7 +49,7 @@ export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onPl
                 <span className="mode-name">{info.name}</span>
                 <span className="mode-blurb">{info.blurb}</span>
                 <span className="mode-foot">
-                  <span className="tag">{multi ? 'FREE' : cost}</span>
+                  <span className="tag">{multi ? multiCost : cost}</span>
                   <span className="mode-best">{multi ? `${MIN_PLAYERS}-${LOBBY_KINDS.royale.max} players` : `Best ${getBest(mode) || '--'}`}</span>
                 </span>
               </span>
@@ -89,30 +87,12 @@ export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onPl
           </button>
         </div>
 
-        <div className="box profile-box">
-          <h2 className="box-title">Profile</h2>
-          <div className="me-row">
-            <Avatar picture={user.picture} size={48} />
-            <div>
-              <PlayerLink id={user.id} name={user.name} onProfile={onProfile} className="me-name" />
-              <div className="me-badges">
-                <Badges ids={user.badges} />
-              </div>
-            </div>
-          </div>
-          <div className="profile-btns">
-            <button className="btn small ghost" onClick={() => onProfile(user.id)}>
-              My profile
-            </button>
-            <button className="btn small ghost" onClick={onPlayers}>
-              Find players
-            </button>
-          </div>
-        </div>
-
-        <div className="box">
-          <h2 className="box-title">Controls</h2>
-          <Keys />
+        <div className="box shop-box-side">
+          <h2 className="box-title">Shop</h2>
+          <p className="fine">Pictures and ranks for your profile. Spend Digipogs, keep them forever.</p>
+          <button className="btn small perks-btn" onClick={onShop}>
+            Open shop
+          </button>
         </div>
       </aside>
     </div>

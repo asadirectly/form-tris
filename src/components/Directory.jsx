@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
 import { Avatar, Badges } from './PlayerLink.jsx';
+import { titlesQuiet } from '../cosmetics.js';
 import { searchProfiles } from '../api.js';
 
-export default function Directory({ user, onBack, onProfile }) {
+// popup: shown over a lobby, so a player can find someone to invite without leaving it
+export default function Directory({ user, onBack, onProfile, popup }) {
   const [query, setQuery] = useState('');
   const [players, setPlayers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -37,6 +39,57 @@ export default function Directory({ user, onBack, onProfile }) {
       .catch((err) => setError(err.message));
   }
 
+  const list = (
+    <div className="box directory">
+      <h3 className="box-title">
+        {query ? `Results · ${total}` : `Everyone · ${total}`}
+      </h3>
+      <div className="form search">
+        <input type="text" maxLength={40} placeholder="Search by name" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} />
+      </div>
+
+      {!loading && players.length === 0 && <p className="fine">No players found.</p>}
+
+      <ul>
+        {players.map((p) => (
+          <li key={p.id}>
+            <button type="button" className="player-row" onClick={() => onProfile(p.id)}>
+              <Avatar picture={p.picture} size={40} />
+              <span className="player-name">{p.name}</span>
+              <Badges ids={p.badges} quiet={titlesQuiet(p.picture)} />
+              <span className="player-count">{p.achievements} ach.</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {players.length < total && (
+        <button className="btn small ghost perks-btn" onClick={loadMore}>
+          Show more
+        </button>
+      )}
+    </div>
+  );
+
+  if (popup) {
+    return (
+      <div className="modal-back" onClick={onBack}>
+        <div className="modal profile" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-head profile-bar">
+            <span>Find players</span>
+            <button type="button" className="btn small ghost" onClick={onBack}>
+              Close
+            </button>
+          </div>
+          <div className="modal-body">
+            {error && <p className="error">{error}</p>}
+            {list}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="menu">
       <header className="topbar">
@@ -53,35 +106,7 @@ export default function Directory({ user, onBack, onProfile }) {
         <h2 className="heading">Players</h2>
         {error && <p className="error">{error}</p>}
 
-        <div className="box directory">
-          <h3 className="box-title">
-            {query ? `Results · ${total}` : `Everyone · ${total}`}
-          </h3>
-          <div className="form search">
-            <input type="text" maxLength={40} placeholder="Search by name" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} />
-          </div>
-
-          {!loading && players.length === 0 && <p className="fine">No players found.</p>}
-
-          <ul>
-            {players.map((p) => (
-              <li key={p.id}>
-                <button type="button" className="player-row" onClick={() => onProfile(p.id)}>
-                  <Avatar picture={p.picture} size={40} />
-                  <span className="player-name">{p.name}</span>
-                  <Badges ids={p.badges} />
-                  <span className="player-count">{p.achievements} ach.</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-
-          {players.length < total && (
-            <button className="btn small ghost perks-btn" onClick={loadMore}>
-              Show more
-            </button>
-          )}
-        </div>
+        {list}
       </section>
     </div>
   );

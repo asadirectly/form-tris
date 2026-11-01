@@ -5,7 +5,14 @@ import { getLeaderboards } from '../api.js';
 import { formatTime } from '../format.js';
 import PlayerLink, { Badges } from './PlayerLink.jsx';
 
-const labels = { normal: 'Score', sprint: 'Time' };
+// the four boards: two are the solo modes (they give the discounts), two come from multiplayer
+const titles = {
+  normal: `${MODES.normal.name} · Score`,
+  sprint: `${MODES.sprint.name} · Time`,
+  wins: 'Most wins',
+  kos: 'Battle Royale · Most KOs',
+};
+const empty = { normal: 'No scores yet.', sprint: 'No scores yet.', wins: 'No wins yet.', kos: 'No KOs yet.' };
 
 function showValue(mode, value) {
   return mode === 'sprint' ? formatTime(value) : value.toLocaleString();
@@ -39,14 +46,13 @@ export default function Leaderboard({ user, onBack, onProfile }) {
         {!boards && !error && <p className="fine">LOADING...</p>}
 
         {boards && (
+          <>
           <div className="boards-grid">
-            {Object.keys(MODES).map((mode, i) => (
+            {Object.keys(titles).map((mode, i) => (
               <div key={mode} className={`box board ${mode}`} style={{ '--i': i }}>
-                <h3 className="box-title">
-                  {MODES[mode].name} · {labels[mode]}
-                </h3>
+                <h3 className="box-title">{titles[mode]}</h3>
 
-                {boards[mode].entries.length === 0 && <p className="fine">No scores yet.</p>}
+                {boards[mode].entries.length === 0 && <p className="fine">{empty[mode]}</p>}
 
                 <ul>
                   {boards[mode].entries.map((entry) => (
@@ -70,6 +76,8 @@ export default function Leaderboard({ user, onBack, onProfile }) {
               </div>
             ))}
           </div>
+          <p className="fine">Wins and KOs only count in matches with at least one other real player, CPUs alone don't count. Wins are Standard, Battle Royale and Rush.</p>
+          </>
         )}
       </section>
     </div>

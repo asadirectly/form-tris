@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
-import { LOBBY_KINDS, MIN_PLAYERS } from '../game/constants.js';
+import { LOBBY_KINDS, MIN_PLAYERS, RUSH_LINES } from '../game/constants.js';
 
-export default function LobbyList({ socket, user, error, onBack }) {
+export default function LobbyList({ socket, user, error, onBack, onEnter }) {
   const [lobbies, setLobbies] = useState([]);
-  const [form, setForm] = useState({ name: '', kind: 'standard', max: 8, isPrivate: false, password: '' });
+  const [form, setForm] = useState({ name: '', kind: 'standard', max: 8, isPrivate: false, password: '', lines: RUSH_LINES.default });
   const [code, setCode] = useState('');
   const [codePassword, setCodePassword] = useState('');
 
@@ -30,13 +30,14 @@ export default function LobbyList({ socket, user, error, onBack }) {
   function create(e) {
     e.preventDefault();
     const settings = { kind: form.kind, max: Number(form.max), isPrivate: form.isPrivate, password: form.password };
+    if (form.kind === 'rush') settings.lines = Number(form.lines);
     if (user.isAdmin && form.name.trim()) settings.name = form.name; // everyone else gets "{name}'s lobby" from the server
-    socket.send({ type: 'create', ...settings });
+    onEnter({ action: 'create', settings });
   }
 
   function joinCode(e) {
     e.preventDefault();
-    socket.send({ type: 'join', code, password: codePassword });
+    onEnter({ action: 'join', code, password: codePassword });
   }
 
   const limit = LOBBY_KINDS[form.kind].max;
@@ -61,9 +62,9 @@ export default function LobbyList({ socket, user, error, onBack }) {
           <h3 className="box-title">Public lobbies</h3>
           {lobbies.length === 0 && <p className="fine">No lobbies yet. Make one!</p>}
           {lobbies.map((l) => (
-            <button key={l.id} className={`lobby-row ${l.kind}`} onClick={() => socket.send({ type: 'join', code: l.id })}>
+            <button key={l.id} className={`lobby-row ${l.kind}`} onClick={() => onEnter({ action: 'join', code: l.id })}>
               <span className="lobby-name">{l.name}</span>
-              <span className="tag">{LOBBY_KINDS[l.kind].name}</span>
+              <span className="tag">{l.kind === 'rush' ? `Rush ${l.lines}L` : LOBBY_KINDS[l.kind].name}</span>
               <span className="lobby-info">
                 {l.players}/{l.max}
               </span>
@@ -98,6 +99,12 @@ export default function LobbyList({ socket, user, error, onBack }) {
             Max players ({MIN_PLAYERS}-{limit})
             <input type="number" min={MIN_PLAYERS} max={limit} value={form.max} onChange={(e) => change('max', e.target.value)} />
           </label>
+          {form.kind === 'rush' && (
+            <label>
+              Lines to clear ({RUSH_LINES.min}-{RUSH_LINES.max})
+              <input type="number" min={RUSH_LINES.min} max={RUSH_LINES.max} value={form.lines} onChange={(e) => change('lines', e.target.value)} />
+            </label>
+          )}
           <label className="check">
             <input type="checkbox" checked={form.isPrivate} onChange={(e) => change('isPrivate', e.target.checked)} />
             Private (needs a password)
