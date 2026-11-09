@@ -4,6 +4,7 @@ import Backdrop from './components/Backdrop.jsx';
 import LoginScreen from './components/LoginScreen.jsx';
 import Menu from './components/Menu.jsx';
 import GameScreen from './components/GameScreen.jsx';
+import BlastScreen from './components/BlastScreen.jsx';
 import PayModal from './components/PayModal.jsx';
 import BuyModal from './components/BuyModal.jsx';
 import Shop from './components/Shop.jsx';
@@ -155,8 +156,9 @@ export default function App() {
     screenKey = 'login';
   } else if (round) {
     const costText = user.playsFree ? 'free' : `${cost} Digipogs`;
+    const Game = round.mode === 'blast' ? BlastScreen : GameScreen;
     screen = (
-      <GameScreen
+      <Game
         mode={round.mode}
         roundId={round.roundId}
         costText={costText}

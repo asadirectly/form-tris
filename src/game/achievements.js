@@ -1,6 +1,6 @@
 // every achievement and rank lives in this file, add a new one by adding a line to the list
 //
-// mode says where it can be earned: 'any', 'normal', 'sprint', 'multi', or a list of modes like ['normal', 'sprint']
+// mode says where it can be earned: 'any', 'normal', 'sprint', 'blast', 'multi', or a list of modes like ['normal', 'sprint']
 // test(stats, result) runs on the server after a finished round or match, but only in the modes listed
 // stats is the player's saved totals (already updated with this game), result is the game that just ended
 // icon is the short text on the colored tile, color is a piece color from theme.css
@@ -34,6 +34,12 @@ export const ACHIEVEMENTS = [
   { id: 'sprint-done', name: 'Forty Down', text: 'Finish a 40L race.', icon: '40', color: 'orange', mode: 'sprint', test: (s, r) => r.won },
   { id: 'sprint-2min', name: 'Under Two', text: 'Finish 40L in under 2:00.', icon: '2:00', color: 'orange', mode: 'sprint', test: (s, r) => r.won && r.time < 120000 },
   { id: 'sprint-1min', name: 'Speed Demon', text: 'Finish 40L in under 1:00.', icon: '1:00', color: 'red', mode: 'sprint', test: (s, r) => r.won && r.time < 60000 },
+
+  // block blast
+  { id: 'blast-1k', name: 'Blast Off', text: 'Score 1,000 in Block Blast.', icon: '1K', color: 'cyan', mode: 'blast', test: (s, r) => r.score >= 1000 },
+  { id: 'blast-5k', name: 'Blast Radius', text: 'Score 5,000 in Block Blast.', icon: '5K', color: 'blue', mode: 'blast', test: (s, r) => r.score >= 5000 },
+  { id: 'blast-combo', name: 'Chain Blast', text: 'Reach a x5 combo in Block Blast.', icon: 'x5', color: 'orange', mode: 'blast', test: (s, r) => r.combo >= 5 },
+  { id: 'blast-perfect', name: 'Clean Slate', text: 'Clear the whole grid in Block Blast.', icon: 'PC', color: 'yellow', mode: 'blast', test: (s, r) => r.perfects >= 1 },
 
   // multiplayer, a match only counts when it lasted a minute or more
   { id: 'multi-play', name: 'Join the Pile', text: 'Play a multiplayer match.', icon: 'VS', color: 'red', mode: 'multi', test: (s) => s.matches >= 1 },

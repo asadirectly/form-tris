@@ -175,7 +175,7 @@ adminRouter.post('/players/:id/scores/remove', (req, res) => {
   const id = targetId(req);
   notAdmin(id);
   const mode = req.body.mode;
-  if (mode !== 'normal' && mode !== 'sprint') throw fail(400, 'bad mode');
+  if (mode !== 'normal' && mode !== 'sprint' && mode !== 'blast') throw fail(400, 'bad mode');
   const removed = removeScore(id, mode);
   logAction(req.session.user, 'remove score', String(id), `${mode}${removed ? '' : ' (had none)'}`);
   res.json({ removed });

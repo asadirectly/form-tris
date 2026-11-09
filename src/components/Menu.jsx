@@ -6,13 +6,12 @@ import { getBest } from '../format.js';
 const planned = [
   { name: 'Light mode', blurb: 'For people who hate their eyes.', color: 'green' },
   { name: 'Puyo Puyo', blurb: 'A new game mode.', color: 'purple' },
-  { name: 'Block Blast', blurb: 'Another new game mode.', color: 'cyan' },
 ];
 
 const places = ['1st', '2nd', '3rd'];
 
 // the texture strip on the end of each mode bar
-const art = { normal: '/img/Pattern01.png', multi: '/img/Pattern03.png', sprint: '/img/Pattern02.png' };
+const art = { normal: '/img/Pattern01.png', multi: '/img/Pattern03.png', sprint: '/img/Pattern02.png', blast: '/img/Pattern04.png' };
 
 export default function Menu({ user, error, onPlay, onMulti, onLeaderboard, onPlayers, onShop, onAdmin, onSettings, onProfile, onLogout }) {
   let cost = 'FREE';

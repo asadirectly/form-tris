@@ -14,22 +14,23 @@ export const SPRINT_LINES = 40;
 // multiplayer lobbies, the server enforces these limits and the lobby screens read them
 export const MIN_PLAYERS = 2;
 export const LOBBY_KINDS = {
-  standard: { name: 'Standard', max: 32, blurb: 'Classic versus. Garbage, targeting and last one standing.' },
-  royale: { name: 'Battle Royale', max: 99, blurb: 'Up to 99 players. KOs make your attacks stronger.' },
-  rush: { name: 'Rush', max: 32, blurb: 'A race. The first to clear the lines wins. No garbage.' },
+  standard: { name: 'Standard', max: 32, blurb: 'Classic versus. Garbage, targeting and last one standing' },
+  royale: { name: 'Battle Royale', max: 99, blurb: 'Up to 99 players. KOs make your attacks stronger' },
+  rush: { name: 'Rush', max: 32, blurb: 'A race. The first to clear the lines wins' },
 };
 
 // rush: how many lines the winner has to clear, the host picks
 export const RUSH_LINES = { min: 1, max: 999, default: 40 };
 
 export const MODES = {
-  normal: { name: 'Normal', blurb: 'Endless. Clear lines, progressive diffulty, blah blah blah' },
+  normal: { name: 'Normal', blurb: 'Endless. Clear lines, beat the highscore! or relax' },
   sprint: { name: '40L', blurb: 'Clear 40 lines as fast as you can' },
+  blast: { name: 'Block Blast', blurb: 'Drop pieces on an 8x8 grid and blast them lines!' },
 };
 
 // the multiplayer bar on the menu, it opens the lobbies instead of starting a round
-export const MULTI = { name: 'Multiplayer', blurb: 'Standard, Battle Royale (up to 99) or a Rush race. CPUs welcome.' };
-export const MENU_MODES = ['normal', 'multi', 'sprint']; // order of the bars on the menu
+export const MULTI = { name: 'Multiplayer', blurb: 'Standard, Battle Royale (up to 99) or a Rush race' };
+export const MENU_MODES = ['normal', 'multi', 'sprint', 'blast']; // order of the bars on the menu
 
 export const COLORS = {
   G: '#71717a', // garbage

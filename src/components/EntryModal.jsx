@@ -24,7 +24,7 @@ export default function EntryModal({ entry, onPay, onCancel }) {
   return (
     <BuyModal
       title={titles[action]}
-      text={(action === 'create' ? 'Creating a lobby costs an entry fee.' : 'Playing in a lobby costs an entry fee. Watching is free.') + (balance == null && price > 0 ? ' Formbar checks your balance when you pay.' : '')}
+      text={(action === 'create' ? 'Creating a lobby costs an entry fee.' : 'Playing in a lobby costs an entry fee. Watching is free.') + (balance == null && price > 0 ? ' di-di digipogs! do-do-do' : '')}
       price={price}
       rows={rows}
       payLabel={price === 0 ? 'Continue' : `Pay ${price} and ${action === 'create' ? 'create' : action === 'join' ? 'join' : 'play'}`}

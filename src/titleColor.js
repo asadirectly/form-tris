@@ -9,6 +9,17 @@ function darken(hex) {
   return `rgb(${parts.join(',')})`;
 }
 
+// the name shown for a title, or null if the id is unknown
+export function titleName(id) {
+  if (id === 'owner') return 'Owner';
+  if (id === 'admin') return 'Admin';
+
+  const rank = RANKS.find((r) => r.id === id);
+  if (rank) return rank.name;
+
+  return Object.hasOwn(COSMETIC_RANKS, id) ? COSMETIC_RANKS[id].name : null;
+}
+
 // the accent color of a title, used for a player's profile. returns { c, dk } or null if the id is unknown
 export function titleColor(id) {
   if (id === 'owner') return { c: 'var(--yellow)', dk: 'var(--yellow-dk)' };

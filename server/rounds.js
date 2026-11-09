@@ -5,7 +5,7 @@ import { getPrice, addScore } from './leaderboard.js';
 import { recordSolo } from './profiles.js';
 import { SPRINT_LINES } from '../src/game/constants.js';
 
-const modes = ['normal', 'sprint'];
+const modes = ['normal', 'sprint', 'blast'];
 const busy = new Set(); // user ids with a payment in progress
 const recent = new Map(); // userId:requestId -> the round we already gave out
 const openRounds = new Map(); // roundId -> who paid for it and when, until its score comes in
@@ -105,6 +105,26 @@ function checkResult(round, r) {
   return null;
 }
 
+// block blast has no levels or t-spins, so it gets its own checks
+function checkBlast(round, r) {
+  for (const n of [r.score, r.lines, r.moves, r.time, r.perfects, r.combo]) {
+    if (!Number.isInteger(n) || n < 0) return 'bad numbers';
+  }
+  if (r.time > Date.now() - round.start) return 'time is longer than the round';
+
+  // nobody places more than a few pieces a second
+  if (r.moves < 1 || r.moves > (r.time / 1000) * 5 + 3) return 'too many moves for the time';
+  // the biggest piece can finish 6 lines at once
+  if (r.lines > r.moves * 6) return 'too many lines for the moves';
+  if (r.combo > Math.max(0, r.lines - 1)) return 'combo is longer than the lines';
+  if (r.perfects > r.lines) return 'too many perfect clears';
+
+  // a piece adds 9 points at most, a clear is worth up to 60 per line plus 10 per combo level, and a perfect clear 100
+  const most = r.moves * 9 + r.lines * 60 + r.combo * 10 * r.lines + r.perfects * 100;
+  if (r.score > most) return 'score is too high for the moves';
+  return null;
+}
+
 // records a finished round, only for a round this player paid for. every finished round counts toward the
 // profile, but only a score (or a finished race) goes on the leaderboard
 export function finishRound(user, roundId, result) {
@@ -112,17 +132,20 @@ export function finishRound(user, roundId, result) {
   if (!round || round.userId !== user.id) throw fail(400, 'there is no open round for this score');
   openRounds.delete(roundId); // one result per round, even a rejected one uses it up
 
-  const problem = checkResult(round, result);
+  const problem = round.mode === 'blast' ? checkBlast(round, result) : checkResult(round, result);
   if (problem) {
     console.log(`score from user ${user.id} rejected: ${problem}`);
     throw fail(400, 'that score could not be verified, so it was not saved');
   }
 
-  const earned = recordSolo(user, round.mode, result);
+  // the profile expects the fields the other modes send, block blast has none of them
+  const stats = round.mode === 'blast' ? { ...result, level: 1, tspins: 0, tetrises: 0, won: false } : result;
+  const earned = recordSolo(user, round.mode, stats);
 
   let saved = { rank: null, isNewBest: false };
   if (round.mode === 'sprint' && result.won) saved = addScore(user, 'sprint', result.time);
   if (round.mode === 'normal' && result.score > 0) saved = addScore(user, 'normal', result.score);
+  if (round.mode === 'blast' && result.score > 0) saved = addScore(user, 'blast', result.score);
 
   return { ...saved, ...earned };
 }

@@ -113,6 +113,9 @@ function Detail({ id, onProfile, onChanged }) {
           <ConfirmButton ask="Remove time?" disabled={isAdminPlayer} onConfirm={() => act('/scores/remove', { mode: 'sprint' }, (d) => (d.removed ? '40L time removed.' : 'They had no 40L time.'))}>
             Remove 40L time
           </ConfirmButton>
+          <ConfirmButton ask="Remove score?" disabled={isAdminPlayer} onConfirm={() => act('/scores/remove', { mode: 'blast' }, (d) => (d.removed ? 'Block Blast score removed.' : 'They had no Block Blast score.'))}>
+            Remove Block Blast score
+          </ConfirmButton>
         </div>
         <p className="fine">Bans only block multiplayer. Admins can not be banned, kicked or have scores removed.</p>
       </div>

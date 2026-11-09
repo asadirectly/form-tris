@@ -7,13 +7,14 @@ const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../data
 const file = path.join(dataDir, 'leaderboard.json');
 
 // one best result per player in each mode, keyed by formbar user id
-// normal keeps the score, sprint keeps the time in ms
-const boards = { normal: {}, sprint: {} };
+// normal and blast keep the score, sprint keeps the time in ms
+const boards = { normal: {}, sprint: {}, blast: {} };
 
 try {
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
   boards.normal = saved.normal || {};
   boards.sprint = saved.sprint || {};
+  boards.blast = saved.blast || {};
 } catch (err) {
   // no file just means nobody has played yet, anything else we don't want to overwrite
   if (err.code !== 'ENOENT') {
@@ -29,7 +30,7 @@ function save() {
   fs.renameSync(file + '.tmp', file);
 }
 
-// best first: highest score for normal, lowest time for sprint. a tie goes to whoever got there first
+// best first: highest score for normal and blast, lowest time for sprint. a tie goes to whoever got there first
 function sorted(mode) {
   const list = Object.values(boards[mode]);
   list.sort((a, b) => {

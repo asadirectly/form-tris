@@ -50,6 +50,7 @@ function newStats() {
     normalRounds: 0,
     sprintRounds: 0,
     sprintFinishes: 0,
+    blastRounds: 0,
     matches: 0,
     matchWins: 0,
     realWins: 0, // multiplayer wins (standard, battle royale, rush) in matches with at least one other real player
@@ -186,6 +187,8 @@ export function recordSolo(user, mode, result) {
   if (mode === 'normal') {
     s.normalRounds++;
     s.bestLevel = Math.max(s.bestLevel, result.level);
+  } else if (mode === 'blast') {
+    s.blastRounds++;
   } else {
     s.sprintRounds++;
     if (result.won) {

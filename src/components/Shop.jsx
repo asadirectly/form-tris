@@ -203,9 +203,6 @@ export default function Shop({ user, onBack, onBought, onChanged, onProfile }) {
                 );
               })}
             </ul>
-            <p className="fine credit">
-              The sans. rank is drawn in Pixel Comic Sans (Undertale Sans Font) by ColorSwitchFan25, fontstruct.com/fontstructions/show/1534860
-            </p>
           </>
         )}
       </section>

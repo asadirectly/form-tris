@@ -8,7 +8,7 @@ export default function LoginScreen() {
     <main className="login">
       <div className="login-main">
         <Logo />
-        <p className="tagline">Play Tetris! Play Tetris please! Play it now!</p>
+        <p className="tagline">Play Tetris! Get some Tetrisers!</p>
         {failed && <p className="error">Login failed, please try again.</p>}
         <a className="btn big" href="/login">
           Log in with Formbar

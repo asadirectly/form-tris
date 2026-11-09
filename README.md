@@ -12,9 +12,9 @@ For production, run `npm run build` and then `npm start`. This works on Windows,
 
 ## What's in it
 
-- Solo modes: Normal (highest score) and 40L (fastest time). Each round costs an entry fee.
+- Solo modes: Normal (highest score), 40L (fastest time) and Block Blast (an 8x8 puzzle, highest score). Each round costs an entry fee.
 - Multiplayer: Standard, Battle Royale and Rush lobbies, public or private, with CPU opponents, invites and spectating.
-- Leaderboards for score, 40L time, wins and KOs. The top 3 on Normal and 40L get entry discounts.
+- Leaderboards for Normal, 40L, Block Blast, wins and KOs. The top 3 on the solo boards get entry discounts.
 - Profiles, achievements and ranks.
 - A shop for profile pictures and ranks, paid in Digipogs.
 - An admin panel for players, lobbies, the shop and logs.

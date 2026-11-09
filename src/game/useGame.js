@@ -7,7 +7,7 @@ import { submitScore } from '../api.js';
 import { encodeBoard, seededRandom } from './versus.js';
 import { actionOf } from './keys.js';
 
-function saveBest(game) {
+export function saveBest(game) {
   const sprint = game.mode === 'sprint';
   if (sprint && !game.won) return null;
 

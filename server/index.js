@@ -117,7 +117,10 @@ app.get('/api/leaderboards', (req, res) => {
 
   const boards = { ...getBoards(user.id), ...getStatBoards(user.id) };
   for (const mode of Object.keys(boards)) {
-    for (const entry of boards[mode].entries) entry.badges = badgesFor(entry.userId);
+    for (const entry of boards[mode].entries) {
+      entry.badges = badgesFor(entry.userId);
+      entry.picture = pictureOf(entry.userId);
+    }
   }
   res.json(boards);
 });

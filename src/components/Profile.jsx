@@ -7,7 +7,7 @@ import { Badges } from './PlayerLink.jsx';
 import { TitlePicker, PicturePicker } from './Pickers.jsx';
 import Fx from './Fx.jsx';
 import { pictureEffect, titlesQuiet } from '../cosmetics.js';
-import { titleColor } from '../titleColor.js';
+import { titleColor, titleName } from '../titleColor.js';
 
 function formatDate(time) {
   return new Date(time).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -93,6 +93,14 @@ export default function Profile({ id, user, lobby, onInvite, onChanged, onClose 
     topRank = RANKS.find((r) => r.id === profile.rank.top) || null;
     accent = profile.badges.length > 0 ? titleColor(profile.badges[0]) : null;
     const next = profile.rank.next ? RANKS.find((r) => r.id === profile.rank.next.id) : null;
+
+    // the big title is the first one the player shows. if they show none, it falls back to their highest earned rank
+    let heroName = topRank ? topRank.name : 'Unranked';
+    let heroColor = topRank ? `var(--${topRank.color})` : 'var(--muted)';
+    if (accent) {
+      heroName = titleName(profile.badges[0]);
+      heroColor = accent.c;
+    }
     const gamesDecided = s.wins + s.losses;
     // only while we are in a lobby that has not started, and only the host can invite to a private one
     const canInvite = !!lobby && lobby.status === 'waiting' && (!lobby.isPrivate || String(lobby.hostId) === String(user.id));
@@ -123,8 +131,8 @@ export default function Profile({ id, user, lobby, onInvite, onChanged, onClose 
         <div className="profile-grid">
           <div className="box">
             <h3 className="box-title">Rank</h3>
-            <p className="top-rank" style={{ '--c': topRank ? `var(--${topRank.color})` : 'var(--muted)' }}>
-              {topRank ? topRank.name : 'Unranked'}
+            <p className="top-rank" style={{ '--c': heroColor }}>
+              {heroName}
             </p>
             <p className="fine">
               {count} of {ACHIEVEMENTS.length} achievements
@@ -147,6 +155,10 @@ export default function Profile({ id, user, lobby, onInvite, onChanged, onClose 
               <li>
                 <span>Normal score</span>
                 <b>{profile.bests.normal ? `${profile.bests.normal.value.toLocaleString()} · #${profile.bests.normal.rank}` : '--'}</b>
+              </li>
+              <li>
+                <span>Block Blast score</span>
+                <b>{profile.bests.blast ? `${profile.bests.blast.value.toLocaleString()} · #${profile.bests.blast.rank}` : '--'}</b>
               </li>
               <li>
                 <span>40L time</span>

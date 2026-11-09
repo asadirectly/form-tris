@@ -414,6 +414,7 @@ kbd {
 
 .mode-bar.normal { --c: var(--blue); --c-dk: var(--blue-dk); }
 .mode-bar.sprint { --c: var(--orange); --c-dk: var(--orange-dk); }
+.mode-bar.blast { --c: var(--cyan); --c-dk: var(--cyan-dk); }
 
 .mode-skew {
   position: absolute;
@@ -600,21 +601,34 @@ kbd {
   margin-top: 12px;
 }
 
-/* leaderboard screen, one box per mode in the same colors as the mode bars */
+/* leaderboard screen: a tab for each board, the board with a podium for the top 3, and your standings beside it */
 
-.boards {
+.boards-top {
   grid-column: 1 / -1;
 }
 
-.boards .fine {
-  padding-top: 4px;
+.boards-top .heading { margin-bottom: 14px; }
+.boards-top .error,
+.boards-top .fine { margin-top: 10px; }
+
+.board-tabs { gap: 8px; }
+
+.board-tabs .tab { box-shadow: inset 0 -4px 0 var(--c); }
+.board-tabs .tab:hover { color: var(--text); background: var(--steel); }
+
+.board-tabs .tab.on {
+  color: #000;
+  background: var(--c);
+  border-color: var(--c);
+  box-shadow: 4px 4px 0 var(--c-dk);
 }
 
-.boards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px 36px;
-  align-items: start;
+.board-tabs .tab small {
+  margin-left: 6px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.7;
 }
 
 .board {
@@ -624,10 +638,183 @@ kbd {
   animation-delay: calc(var(--i) * 0.1s + 0.1s);
 }
 
-.board.normal { --c: var(--blue); --c-dk: var(--blue-dk); --accent: var(--blue); }
-.board.sprint { --c: var(--orange); --c-dk: var(--orange-dk); --accent: var(--orange); }
-.board.wins { --c: var(--green); --c-dk: var(--green-dk); --accent: var(--green); }
-.board.kos { --c: var(--red); --c-dk: var(--red-dk); --accent: var(--red); }
+/* the same texture strip the mode bars have, at the end of the title */
+.board .box-title { padding-right: 0; }
+
+.board .box-title::after {
+  content: '';
+  align-self: stretch;
+  width: 140px;
+  margin: -5px 0 -5px auto;
+  background: var(--art) center / 96px;
+  border-left: 3px solid var(--c);
+}
+
+.board-rule {
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.board.normal, .tab.normal, .standing.normal { --c: var(--blue); --c-dk: var(--blue-dk); --accent: var(--blue); }
+.board.sprint, .tab.sprint, .standing.sprint { --c: var(--orange); --c-dk: var(--orange-dk); --accent: var(--orange); }
+.board.blast, .tab.blast, .standing.blast { --c: var(--cyan); --c-dk: var(--cyan-dk); --accent: var(--cyan); }
+.board.wins, .tab.wins, .standing.wins { --c: var(--green); --c-dk: var(--green-dk); --accent: var(--green); }
+.board.kos, .tab.kos, .standing.kos { --c: var(--red); --c-dk: var(--red-dk); --accent: var(--red); }
+
+/* the top 3 stand on a podium, first place in the middle and the tallest */
+
+.podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 8px 12px;
+  text-align: center;
+  background: var(--slate);
+  border: 3px solid var(--c);
+  box-shadow: 5px 5px 0 var(--c-dk);
+}
+
+.step.place-1 { min-height: 250px; border-color: var(--yellow); box-shadow: 6px 6px 0 var(--yellow-dk); }
+.step.place-2 { min-height: 215px; }
+.step.place-3 { min-height: 190px; }
+.step.me { background: var(--steel); }
+
+.step.empty {
+  opacity: 0.45;
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.step-place {
+  align-self: stretch;
+  margin: 0 -8px 6px;
+  padding: 2px 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.2;
+  color: #000;
+  background: var(--c);
+}
+
+.step.place-1 .step-place { background: var(--yellow); }
+.step.empty .step-place { background: var(--line); }
+
+.step-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.step-badges:empty { display: none; }
+
+.step-value {
+  margin-top: auto;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--yellow);
+}
+
+.step.place-1 .step-value { font-size: 24px; }
+
+.step-open {
+  margin: auto 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* places 4 and below, a list with a bit more room than the one in a match result */
+
+.board-list .rank-row { padding: 8px 0; }
+.board-list .rank-row .rank-pos { color: var(--muted); }
+
+.rank-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rank-who .rank-name { flex: none; }
+
+.rank-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rank-badges:empty { display: none; }
+
+.board-gap {
+  padding: 2px 0 2px 38px;
+  font-family: var(--font-display);
+  letter-spacing: 0.3em;
+  color: var(--line);
+}
+
+.standing {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px 8px 16px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid var(--steel);
+  box-shadow: inset 6px 0 0 var(--c);
+  cursor: pointer;
+}
+
+.standings li:last-child .standing { border-bottom: 0; }
+.standing:hover { background: var(--slate); }
+.standing.on { background: var(--steel); }
+
+.standing-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.standing.on .standing-name { color: var(--c); }
+
+.standing b {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 400;
+  white-space: nowrap;
+}
 
 .rank-row {
   display: flex;
@@ -1064,16 +1251,19 @@ button.chip:hover { color: var(--text); }
   font-size: 24px;
 }
 
+/* a black plate on the colored bar, so it reads on any title color. it turns white on hover */
 .profile-bar .btn.ghost {
-  color: #000;
+  color: var(--text);
+  background: #000;
   border-color: #000;
-  box-shadow: none;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
 
 .profile-bar .btn.ghost:hover:not(:disabled) {
   color: #000;
-  background: rgba(0, 0, 0, 0.18);
-  box-shadow: none;
+  background: var(--text);
+  border-color: #000;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35);
 }
 
 .profile-head {
@@ -1362,6 +1552,7 @@ button.chip:hover { color: var(--text); }
 
 .modal.normal { --c: var(--blue); --c-dk: var(--blue-dk); }
 .modal.sprint { --c: var(--orange); --c-dk: var(--orange-dk); }
+.modal.blast { --c: var(--cyan); --c-dk: var(--cyan-dk); }
 
 .modal-head {
   padding: 8px 18px;
@@ -1430,6 +1621,7 @@ button.chip:hover { color: var(--text); }
 
 .game.normal { --mode-c: var(--blue); --mode-dk: var(--blue-dk); }
 .game.sprint { --mode-c: var(--orange); --mode-dk: var(--orange-dk); }
+.game.blast { --mode-c: var(--cyan); --mode-dk: var(--cyan-dk); }
 
 .side {
   width: 150px;
@@ -1788,10 +1980,6 @@ button.chip:hover { color: var(--text); }
 
 @media (max-width: 900px) {
   .menu {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .boards-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -2439,3 +2627,105 @@ html[data-effects='off'] .sparkle { display: none; }
 .invite-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
 .settings-pane .fine, .invite-card .fine { text-align: left; }
+
+/* block blast */
+
+.game.blast .side .stats { --accent: var(--green); }
+.game.blast .side .btn { width: 100%; }
+
+/* one filled block, the same light and dark edges the canvas blocks have */
+.blast-block {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)) top / 100% 12% no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)) left / 12% 100% no-repeat,
+    linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)) bottom / 100% 12% no-repeat,
+    linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)) right / 12% 100% no-repeat,
+    var(--c);
+}
+
+.blast-box {
+  position: relative;
+  width: min(calc(100dvh - 190px), 560px, calc(100vw - 28px));
+  min-width: 280px;
+  aspect-ratio: 1;
+  border: 4px solid var(--mode-c);
+  background: var(--ink);
+  box-shadow: 8px 8px 0 var(--mode-dk);
+}
+
+.blast-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+}
+
+.blast-fx { pointer-events: none; }
+
+.blast-cell { border: 1px solid var(--slate); }
+.blast-cell.blast-block { border-color: var(--ink); }
+.blast-cell.ghost { opacity: 0.55; }
+.blast-cell.will-clear { outline: 3px solid var(--yellow); outline-offset: -3px; opacity: 0.85; }
+
+.blast-burst { animation: blast-burst 0.45s ease-out forwards; }
+
+@keyframes blast-burst {
+  from { filter: brightness(3); transform: scale(1.1); }
+  to { opacity: 0; transform: scale(0.3) rotate(45deg); }
+}
+
+.blast-piece { display: grid; }
+
+.blast-tray { --mini: 24px; }
+
+.blast-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--mini) * 5 + 12px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.15s;
+}
+
+.blast-slot + .blast-slot { border-top: 2px solid var(--steel); }
+.blast-slot.dim { opacity: 0.25; }
+.blast-slot.lifted { opacity: 0.2; }
+
+/* the piece that follows the pointer while it is dragged */
+.blast-drag {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, 0.5));
+}
+
+.game.blast .hint { display: block; }
+
+@media (max-width: 760px) {
+  .blast-box { width: min(calc(100dvh - 330px), 560px, calc(100vw - 28px)); }
+
+  /* the pieces go right under the board so they are easy to reach */
+  .game.blast .tray-side { order: 1; width: 100%; flex: none; }
+  .blast-tray { --mini: 20px; display: flex; }
+  .blast-slot { flex: 1; }
+  .blast-slot + .blast-slot { border-top: 0; border-left: 2px solid var(--steel); }
+}
+
+@media (max-width: 480px) {
+  .podium { gap: 8px; }
+  .step { padding: 0 4px 10px; }
+  .step-place { margin: 0 -4px 6px; }
+  .step.place-1 { min-height: 200px; }
+  .step.place-2 { min-height: 175px; }
+  .step.place-3 { min-height: 155px; }
+  .step .avatar { width: 40px; height: 40px; }
+  .step-name { font-size: 14px; }
+  .step-value, .step.place-1 .step-value { font-size: 16px; }
+  .step-badges { display: none; }
+  .board .box-title::after { width: 70px; }
+}
