@@ -24,8 +24,18 @@ const isProd = process.env.NODE_ENV === 'production';
 if (isProd) app.set('trust proxy', 1);
 
 app.use(express.json({ limit: '400kb' })); // admin picture uploads are the only big ones
+// the built-in store never deletes expired sessions, so clear them out every hour
+const sessionStore = new session.MemoryStore();
+setInterval(() => {
+  for (const id of Object.keys(sessionStore.sessions)) {
+    const saved = JSON.parse(sessionStore.sessions[id]);
+    if (new Date(saved.cookie.expires) < Date.now()) delete sessionStore.sessions[id];
+  }
+}, 60 * 60 * 1000).unref(); // unref so this timer doesn't keep the process alive
+
 // kept in a variable because the multiplayer sockets read the same login session
 const sessionMiddleware = session({
+  store: sessionStore,
   secret: config.sessionSecret,
   resave: false,
   saveUninitialized: false,

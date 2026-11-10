@@ -3,7 +3,8 @@ module.exports = {
     {
       name: "form-tris",
       script: "./server/start.js",
-      env_file: ".env", 
+      cwd: __dirname,
+      node_args: "--env-file=.env",
       env: {
         NODE_ENV: "production"
       }
