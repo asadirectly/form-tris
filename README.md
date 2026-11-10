@@ -10,6 +10,8 @@ A Tetris game for Formbar. React and Vite on the front end, a small Express serv
 
 For production, run `npm run build` and then `npm start`. This works on Windows, macOS and Linux.
 
+**IF USING PM2** try to run `pm2 start ecosystem.config.js` (untested)
+
 ## What's in it
 
 - Solo modes: Normal (highest score), 40L (fastest time) and Block Blast (an 8x8 puzzle, highest score). Each round costs an entry fee.
