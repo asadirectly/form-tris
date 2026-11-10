@@ -1,9 +1,9 @@
-module.exports = {
+export default {
   apps: [
     {
       name: "form-tris",
-      script: "./server/start.js",
-      env_file: ".env", 
+      script: "node",
+      args: "--env-file=.env server/start.js",
       env: {
         NODE_ENV: "production"
       }
