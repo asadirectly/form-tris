@@ -12,7 +12,7 @@ import { PICTURES, UPLOAD_KEY } from '../src/game/pictures.js';
 import {
   adminProfile, searchProfiles, banOf, setBan, setPictureOverride, setAchievement, siteStats, achievementCounts,
 } from './profiles.js';
-import { gift, takeBack, adminShop, setItem, setSale, shopStats, transactions, resolveEntry, addCredit, creditsOf } from './shop.js';
+import { gift, takeBack, adminShop, setItem, setSale, shopStats, transactions, resolveEntry, addCredit, creditsOf, MAX_PRICE } from './shop.js';
 
 const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../data');
 const file = path.join(dataDir, 'admin.json');
@@ -21,8 +21,8 @@ export const avatarDir = path.join(dataDir, 'avatars');
 const MAX_LOG = 1000;
 const MAX_UPLOAD = 256 * 1024;
 
-// the action log and the announcement everybody sees
-let state = { log: [], announcement: null };
+// the action log, the announcement everybody sees, and the game prices an admin has set (null means the ones in config.js)
+let state = { log: [], announcement: null, prices: null };
 
 try {
   state = { ...state, ...JSON.parse(fs.readFileSync(file, 'utf8')) };
@@ -31,6 +31,12 @@ try {
     console.error('could not read data/admin.json, fix or delete it:', err.message);
     process.exit(1);
   }
+}
+
+// prices saved from the admin panel win over config.js
+if (state.prices) {
+  config.roundCost = state.prices.roundCost;
+  config.multiplayerCost = state.prices.multiplayerCost;
 }
 
 function save() {
@@ -123,6 +129,7 @@ adminRouter.get('/stats', (req, res) => {
     lobbies: adminLobbies().length,
     achievements: ACHIEVEMENTS.map((a) => ({ id: a.id, name: a.name, mode: [].concat(a.mode).join(', '), earned: achievementCounts()[a.id] || 0 })),
     announcement: state.announcement,
+    prices: { roundCost: config.roundCost, multiplayerCost: config.multiplayerCost },
   });
 });
 
@@ -263,6 +270,21 @@ adminRouter.put('/shop/sale', (req, res) => {
   const sale = setSale(req.body.percent, req.body.label);
   logAction(req.session.user, 'set sale', '', `${sale.percent}%${sale.label ? ` ${sale.label}` : ''}`);
   res.json({ sale });
+});
+
+// ---- game prices, the solo round fee and the multiplayer entry fee. leaderboard discounts still come off these
+
+adminRouter.put('/prices', (req, res) => {
+  const { roundCost, multiplayerCost } = req.body;
+  for (const price of [roundCost, multiplayerCost]) {
+    if (!Number.isInteger(price) || price < 1 || price > MAX_PRICE) throw fail(400, `prices are whole Digipogs, 1 to ${MAX_PRICE}`);
+  }
+
+  config.roundCost = roundCost;
+  config.multiplayerCost = multiplayerCost;
+  state.prices = { roundCost, multiplayerCost };
+  logAction(req.session.user, 'set prices', '', `rounds ${roundCost}, multiplayer ${multiplayerCost}`); // this also saves state
+  res.json({ prices: state.prices });
 });
 
 // ---- announcements, everyone sees the banner until it is cleared

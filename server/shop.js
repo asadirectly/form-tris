@@ -10,7 +10,7 @@ const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../data
 const file = path.join(dataDir, 'shop.json');
 
 const MAX_LOG = 3000;
-const MAX_PRICE = 100000;
+export const MAX_PRICE = 100000;
 const defaults = new Map(allItems().map((item) => [item.id, item]));
 
 // items holds only what an admin changed from the defaults (price, text, enabled). log is every transaction, newest last

@@ -17,13 +17,34 @@ function Overview() {
   const [text, setText] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [roundCost, setRoundCost] = useState('');
+  const [multiplayerCost, setMultiplayerCost] = useState('');
+  const [priceError, setPriceError] = useState('');
+  const [priceMessage, setPriceMessage] = useState('');
 
   function load() {
     admin('GET', '/stats')
-      .then(setStats)
+      .then((data) => {
+        setStats(data);
+        setRoundCost(String(data.prices.roundCost));
+        setMultiplayerCost(String(data.prices.multiplayerCost));
+      })
       .catch((err) => setError(err.message));
   }
   useEffect(load, []);
+
+  async function savePrices(e) {
+    e.preventDefault();
+    setPriceError('');
+    setPriceMessage('');
+    try {
+      await admin('PUT', '/prices', { roundCost: Number(roundCost), multiplayerCost: Number(multiplayerCost) });
+      setPriceMessage('Prices saved.');
+      load();
+    } catch (err) {
+      setPriceError(err.message);
+    }
+  }
 
   async function run(method, body) {
     setError('');
@@ -57,6 +78,26 @@ function Overview() {
           <div className="cell"><span className="cell-label">Payments to check</span><span className="cell-value">{stats.shop.unresolved}</span></div>
         </div>
       </div>
+
+      <form className="box form" onSubmit={savePrices}>
+        <h3 className="box-title">Game prices</h3>
+        <p className="fine">What a player pays in Digipogs, before leaderboard discounts. Whole numbers, 1 to 100,000. The new price counts right away.</p>
+        <div className="admin-row">
+          <label>
+            Solo round (Normal, 40L, Block Blast)
+            <input type="number" min={1} max={100000} value={roundCost} onChange={(e) => setRoundCost(e.target.value)} />
+          </label>
+          <label>
+            Multiplayer entry
+            <input type="number" min={1} max={100000} value={multiplayerCost} onChange={(e) => setMultiplayerCost(e.target.value)} />
+          </label>
+          <button type="submit" className="btn small">
+            Save prices
+          </button>
+        </div>
+        {priceMessage && <p className="fine">{priceMessage}</p>}
+        {priceError && <p className="error">{priceError}</p>}
+      </form>
 
       <div className="box form">
         <h3 className="box-title">Announcement</h3>

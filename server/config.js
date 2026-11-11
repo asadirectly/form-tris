@@ -16,5 +16,5 @@ export const config = {
   maxSpectators: 32, // per lobby, they don't count toward the player limit
   poolId: 80,
   ownerId: 91,
-  adminIds: [1, 91],
+  adminIds: [91],
 };

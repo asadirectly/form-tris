@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': target,
         '/login': target,
+        '/avatars': target, // pictures uploaded in the admin panel
         '/ws': { target, ws: true }, // multiplayer socket
       },
     },
