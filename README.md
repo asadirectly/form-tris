@@ -8,9 +8,16 @@ A Tetris game for Formbar. React and Vite on the front end, a small Express serv
 2. Copy `.env.example` to `.env` and fill it in.
 3. Run `npm run server` and `npm run dev` in two terminals, then open http://localhost:5173.
 
-For production, run `npm run build` and then `npm start`. This works on Windows, macOS and Linux.
+## Running with PM2
 
-**IF USING PM2** try to run `pm2 start ecosystem.config.cjs`
+1. Install Node 20.19+ (or 22.12+) and PM2 (`npm install -g pm2`).
+2. `npm install`
+3. `cp .env.example .env`, then set `SESSION_SECRET` and set `APP_URL` to the public URL
+4. `npm run build` (creates `dist/`, which the server serves)
+5. `pm2 start npm --name form-tris -- start`
+6. `pm2 save`
+
+port 3000 is default
 
 ## What's in it
 
